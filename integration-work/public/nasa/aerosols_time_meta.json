@@ -1,0 +1,9 @@
+{
+ "frames": 37,
+ "width": 128,
+ "height": 64,
+ "bytes_per_cell": 5,
+ "layout": "frame-major, then row-major (row 0 = lat +90), per cell: black_carbon,dust,sea_salt,sulfate (mix 0-255, sums ~255), strength (0-255)",
+ "source": "NASA SVS 5572 GEOS aerosols, 1 Aug - 14 Sep 2024, sampled every 2 s of video",
+ "note": "strength = relative colour brightness, not physical optical depth; frame k is about day k*1.22 (approximate)"
+}

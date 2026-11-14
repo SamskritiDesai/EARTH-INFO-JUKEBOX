@@ -1,0 +1,30 @@
+EARTH FM - NASA binary dataset integration
+
+INSTALL
+1. Make sure the project is closed or stop the Vite dev server.
+2. In PowerShell, from the project root, make a backup:
+   Copy-Item .\src .\src-before-nasa-integration -Recurse
+3. Extract this ZIP into the project root (the archive contains a src\ folder).
+   Allow Windows to overwrite the files in src.
+4. Confirm these files already exist:
+   public\nasa\sst_time.bin
+   public\nasa\aerosols_time.bin
+   public\nasa\co2_time.bin
+   public\nasa\bio_time.bin
+5. Run:
+   npm run build
+   npm run dev
+
+WHAT CHANGED
+- Replaced the procedural/synthetic data engine with decoding of the four binary datasets.
+- Added independent frame sliders for SST, GEOS aerosols, DYAMOND CO2, and biosphere.
+- Updated telemetry labels/values and the audio mappings to remove invented current speed, AOD, and canopy-height fields.
+- Globe textures refresh when a dataset frame changes.
+
+IMPORTANT DATA CAVEATS
+- SST and biosphere values are approximate colorbar-derived reconstructions, not direct raw satellite measurements.
+- Aerosol values are relative composition/strength, not physical aerosol optical depth (AOD).
+- CO2 is approximate colorbar-derived model data; 0 index/density cells are treated as no-data.
+- Biosphere is relative land NDVI greenness / ocean chlorophyll, not GEDI tree height.
+- SST has no ocean-current velocity field in this supplied binary.
+- SST frame labels are sequence numbers because exact dates were not supplied; aerosol dates are approximate steps.
