@@ -85,6 +85,10 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   const reticleCbRef = useRef(onReticleScreenPosChange);
   reticleCbRef.current = onReticleScreenPosChange;
   const lastReticleRef = useRef<{ x: number; y: number } | null>(null);
+  // Auto-play route caches (so the arc is not rebuilt every frame)
+  const routeKeyRef = useRef('');
+  const arcPointsRef = useRef<THREE.Vector3[]>([]);
+  const lastRouteProbeRef = useRef<{ lat: number; lon: number } | null>(null);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -284,37 +288,51 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   }, [activeParams, dataVersion]);
 
   // Exact Cursor-to-Sphere Raycast Alignment
+  // Drag = spin the globe. Click (no real movement) = place the probe. Shift+drag = scrub the probe.
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const dragMovedRef = useRef(false);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDraggingRef.current = true;
+    dragMovedRef.current = false;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    performRaycast(e.clientX, e.clientY);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!isDraggingRef.current) return;
+
+    // ignore tiny jitters so a click does not turn into a drag
+    if (!dragMovedRef.current) {
+      const moved = Math.hypot(e.clientX - dragStartRef.current.x, e.clientY - dragStartRef.current.y);
+      if (moved < 4) return;
+      dragMovedRef.current = true;
+    }
+
     const dx = e.clientX - prevMouseRef.current.x;
     const dy = e.clientY - prevMouseRef.current.y;
     prevMouseRef.current = { x: e.clientX, y: e.clientY };
 
-    // If Alt key or right click is held, rotate globe; otherwise drag probe reticle
-    if (e.buttons === 2 || e.altKey) {
-      if (globeGroupRef.current) {
-        globeGroupRef.current.rotation.y += dx * 0.005;
-        globeGroupRef.current.rotation.x += dy * 0.005;
-      }
-    } else {
-      performRaycast(e.clientX, e.clientY);
+    if (e.shiftKey) {
+      performRaycast(e.clientX, e.clientY); // scrub the probe across the surface
+    } else if (globeGroupRef.current) {
+      globeGroupRef.current.rotation.y += dx * 0.005;
+      // clamp so the globe cannot be flipped upside down
+      globeGroupRef.current.rotation.x = Math.max(-1.4, Math.min(1.4, globeGroupRef.current.rotation.x + dy * 0.005));
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const wasClick = isDraggingRef.current && !dragMovedRef.current;
     isDraggingRef.current = false;
+    dragMovedRef.current = false;
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {
       // Ignored if already released
     }
+    if (wasClick) performRaycast(e.clientX, e.clientY);
   };
 
   // Perform Exact Raycast against the rotating sphere
@@ -358,20 +376,22 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
 
     satellite.visible = true;
 
-    // Create / Update Geodesic Signal Arc above globe
+    // Create the geodesic signal arc only when the route changes (not on every progress tick)
+    const routeKey = `${autoPlaySource.lat},${autoPlaySource.lon}>${autoPlayDest.lat},${autoPlayDest.lon}`;
+    const segments = 48;
+    if (routeKey !== routeKeyRef.current || !routeArcMeshRef.current) {
     const p1 = latLonToVector3(autoPlaySource.lat, autoPlaySource.lon, GLOBE_RADIUS * 1.005);
     const p2 = latLonToVector3(autoPlayDest.lat, autoPlayDest.lon, GLOBE_RADIUS * 1.005);
 
     // Compute Great-Circle arc points
-    const arcPoints: THREE.Vector3[] = [];
-    const segments = 48;
+    const newArcPoints: THREE.Vector3[] = [];
     for (let i = 0; i <= segments; i++) {
       const t = i / segments;
       // Spherical linear interpolation (Slerp) on vectors
       const v = p1.clone().lerp(p2, t).normalize();
       // Arch height above globe surface (highest in middle)
       const altitude = GLOBE_RADIUS * (1.02 + 0.18 * Math.sin(t * Math.PI));
-      arcPoints.push(v.multiplyScalar(altitude));
+      newArcPoints.push(v.multiplyScalar(altitude));
     }
 
     if (routeArcMeshRef.current) {
@@ -379,7 +399,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       globeGroup.remove(routeArcMeshRef.current);
     }
 
-    const arcGeo = new THREE.BufferGeometry().setFromPoints(arcPoints);
+    const arcGeo = new THREE.BufferGeometry().setFromPoints(newArcPoints);
     const arcMat = new THREE.LineBasicMaterial({
       color: 0x00ffcc,
       linewidth: 2,
@@ -389,6 +409,11 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
     const arcLine = new THREE.Line(arcGeo, arcMat);
     globeGroup.add(arcLine);
     routeArcMeshRef.current = arcLine;
+    arcPointsRef.current = newArcPoints;
+    routeKeyRef.current = routeKey;
+    }
+    if (routeArcMeshRef.current) routeArcMeshRef.current.visible = true;
+    const arcPoints = arcPointsRef.current;
 
     // Place satellite at current progress along the arc
     const segIdx = Math.min(segments - 1, Math.floor(autoPlayProgress * segments));
@@ -403,13 +428,26 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
 
       // Extract latitude & longitude beneath satellite
       const { lat, lon } = vector3ToLatLon(localSatPos, GLOBE_RADIUS);
-      onProbeChange(lat, lon);
+      // only update the probe when the satellite has moved >= 0.2 degrees (was 60 app re-renders/sec)
+      const lp = lastRouteProbeRef.current;
+      if (!lp || Math.abs(lp.lat - lat) >= 0.2 || Math.abs(lp.lon - lon) >= 0.2) {
+        lastRouteProbeRef.current = { lat, lon };
+        onProbeChange(lat, lon);
+      }
 
-      // Smoothly rotate globe to keep satellite centered in view
-      const targetRotY = -(lon * Math.PI) / 180;
+      // Smoothly rotate globe to keep the satellite centered in view.
+      // Longitude L faces the camera when rotation.y = -L - 90deg (the old code was missing the -90deg,
+      // which parked the satellite on the right edge of the globe). Take the shortest way round so the
+      // globe does not spin the long way when the route crosses the 180 degree meridian.
+      const targetRotY = -(lon * Math.PI) / 180 - Math.PI / 2;
       const targetRotX = (lat * Math.PI) / 360;
-      globeGroup.rotation.y = THREE.MathUtils.lerp(globeGroup.rotation.y, targetRotY, 0.05);
-      globeGroup.rotation.x = THREE.MathUtils.lerp(globeGroup.rotation.x, targetRotX, 0.05);
+      let dy = (targetRotY - globeGroup.rotation.y) % (2 * Math.PI);
+      if (dy > Math.PI) dy -= 2 * Math.PI;
+      if (dy < -Math.PI) dy += 2 * Math.PI;
+      if (!isDraggingRef.current) { // let the user turn the globe while auto-play is running
+        globeGroup.rotation.y += dy * 0.05;
+        globeGroup.rotation.x = THREE.MathUtils.lerp(globeGroup.rotation.x, targetRotX, 0.05);
+      }
     }
   }, [autoPlayEnabled, autoPlaySource, autoPlayDest, autoPlayProgress, onProbeChange]);
 
@@ -420,11 +458,13 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={(e) => e.preventDefault()}
       style={{
         width: '100%',
         height: '100%',
         position: 'relative',
-        cursor: isDraggingRef.current ? 'grabbing' : 'crosshair',
+        cursor: 'grab',
         touchAction: 'none'
       }}
     />

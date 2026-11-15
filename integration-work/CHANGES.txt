@@ -9,3 +9,5 @@ EARTH FM - fixes (extract over integration-work/, overwrite src\)
 7. CO2: texture colours now match the legend (emerald->amber->magenta); no-plume areas read "<=380 ppm - NO PLUME" instead of UNAVAILABLE, and the CO2 sub-drone stays alive there.
 
 (Audio engine change was reverted at the user's request - the audio is the original ThemedChordEngine again.)
+9. Satellite signal route (auto-play): globe now centers the satellite (rotation was missing -90deg, parking it on the right edge); shortest-angle rotation so it does not spin the long way across 180deg longitude; arc is built once per route instead of every frame; probe updates only when the satellite moved >=0.2deg.
+10. Globe controls: plain drag now spins the globe (was Alt/right-click only); click places the probe; Shift+drag scrubs the probe; vertical tilt is clamped; auto-play no longer fights your drag; right-click menu suppressed.
