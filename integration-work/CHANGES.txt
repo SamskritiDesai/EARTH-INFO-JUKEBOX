@@ -1,0 +1,11 @@
+EARTH FM - fixes (extract over integration-work/, overwrite src\)
+
+1. data/earthDataEngine.ts  - SST + biosphere are PLANAR (class plane then value plane); engine read them interleaved. Fixed in sample() and getEquirectangularCanvas(). This was the "SST always 0.0 / chlorophyll 0%" bug and the blocky all-blue globe.
+2. Mojibake: ┬░ -> °, ΓÇª -> …, Γÿà -> ★, ├ù -> x (App, CyberEarth, HudTelemetryLeft, HudRightPanel, NasaLoaderDrawer).
+3. components/CyberEarth.tsx - Three.js loop used stale probeLat/probeLon/isScanPlaneActive (effect ran once); now read via refs. Reticle callback throttled to >=1px moves (was re-rendering the entire app at 60fps).
+4. App.tsx - onProbeChange wrapped in useCallback (autoplay effect was re-running on every render).
+5. components/HudTelemetryLeft.tsx - smoothing loop stops re-rendering once values converge.
+6. Header: frame sliders now one line each (SST / AERO / CO2 / BIO) so the 2x2 grid fits inside the original 48px bar; status badge only shows while loading or on error. Full names are in the hover tooltip.
+7. CO2: texture colours now match the legend (emerald->amber->magenta); no-plume areas read "<=380 ppm - NO PLUME" instead of UNAVAILABLE, and the CO2 sub-drone stays alive there.
+
+(Audio engine change was reverted at the user's request - the audio is the original ThemedChordEngine again.)

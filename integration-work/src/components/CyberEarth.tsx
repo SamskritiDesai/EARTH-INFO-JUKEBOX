@@ -77,6 +77,14 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   const prevMouseRef = useRef({ x: 0, y: 0 });
   const autoPlayProgressRef = useRef(autoPlayProgress);
   autoPlayProgressRef.current = autoPlayProgress;
+  // The Three.js loop is created once ([] deps), so it must read live values from refs
+  const probeRef = useRef({ lat: probeLat, lon: probeLon });
+  probeRef.current = { lat: probeLat, lon: probeLon };
+  const scanActiveRef = useRef(isScanPlaneActive);
+  scanActiveRef.current = isScanPlaneActive;
+  const reticleCbRef = useRef(onReticleScreenPosChange);
+  reticleCbRef.current = onReticleScreenPosChange;
+  const lastReticleRef = useRef<{ x: number; y: number } | null>(null);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -118,7 +126,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
     globeGroup.add(baseGlobe);
     globeMeshRef.current = baseGlobe;
 
-    // 2. Graticule Lines (15┬░ Lat/Lon Grid) in glowing cobalt blue
+    // 2. Graticule Lines (15° Lat/Lon Grid) in glowing cobalt blue
     const graticuleLines = createGraticuleLines(GLOBE_RADIUS * 1.001);
     globeGroup.add(graticuleLines);
 
@@ -174,20 +182,20 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
 
       // Scan plane sweep pulse
       if (scanPlaneRef.current) {
-        scanPlaneRef.current.visible = isScanPlaneActive;
-        if (isScanPlaneActive) {
+        scanPlaneRef.current.visible = scanActiveRef.current;
+        if (scanActiveRef.current) {
           scanPlaneRef.current.rotation.y += delta * 0.4;
         }
       }
 
       // Update Target Reticle Position in globe local space
       if (reticleGroupRef.current) {
-        const reticleLocal = latLonToVector3(probeLat, probeLon, GLOBE_RADIUS * 1.015);
+        const reticleLocal = latLonToVector3(probeRef.current.lat, probeRef.current.lon, GLOBE_RADIUS * 1.015);
         reticleGroupRef.current.position.copy(reticleLocal);
         reticleGroupRef.current.lookAt(0, 0, 0);
 
         // Compute 2D Screen Coordinates for HUD leader-line callout
-        if (cameraRef.current && onReticleScreenPosChange && rendererRef.current) {
+        if (cameraRef.current && reticleCbRef.current && rendererRef.current) {
           const worldPos = reticleGroupRef.current.getWorldPosition(new THREE.Vector3());
           // Check if reticle is on front-facing hemisphere
           const camDir = cameraRef.current.position.clone().sub(worldPos).normalize();
@@ -198,9 +206,15 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
             const rect = rendererRef.current.domElement.getBoundingClientRect();
             const screenX = ((screenVec.x + 1) / 2) * rect.width;
             const screenY = ((-screenVec.y + 1) / 2) * rect.height;
-            onReticleScreenPosChange({ x: screenX, y: screenY });
-          } else {
-            onReticleScreenPosChange(null);
+            // only push to React when the reticle moved >=1px (was re-rendering the whole app at 60fps)
+            const last = lastReticleRef.current;
+            if (!last || Math.abs(last.x - screenX) >= 1 || Math.abs(last.y - screenY) >= 1) {
+              lastReticleRef.current = { x: screenX, y: screenY };
+              reticleCbRef.current({ x: screenX, y: screenY });
+            }
+          } else if (lastReticleRef.current) {
+            lastReticleRef.current = null;
+            reticleCbRef.current(null);
           }
         }
       }
@@ -417,11 +431,11 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   );
 };
 
-// Helper: 15┬░ Cobalt-Blue Lat/Lon Graticule Lines
+// Helper: 15° Cobalt-Blue Lat/Lon Graticule Lines
 function createGraticuleLines(radius: number): THREE.LineSegments {
   const points: THREE.Vector3[] = [];
 
-  // Latitude circles (-75 to +75 by 15┬░)
+  // Latitude circles (-75 to +75 by 15°)
   for (let lat = -75; lat <= 75; lat += 15) {
     const latRad = (lat * Math.PI) / 180;
     const y = radius * Math.sin(latRad);
@@ -436,7 +450,7 @@ function createGraticuleLines(radius: number): THREE.LineSegments {
     }
   }
 
-  // Longitude meridians (-180 to 180 by 15┬░)
+  // Longitude meridians (-180 to 180 by 15°)
   for (let lon = -180; lon < 180; lon += 15) {
     const segments = 36;
     for (let i = 0; i < segments; i++) {
@@ -495,7 +509,7 @@ function createScanPlane(size: number): THREE.Group {
 
   // Wireframe grid plane
   const gridHelper = new THREE.GridHelper(size, 16, 0x00ff44, 0x008822);
-  gridHelper.rotation.x = Math.PI / 4; // Angled 45┬░ across axis
+  gridHelper.rotation.x = Math.PI / 4; // Angled 45° across axis
   group.add(gridHelper);
 
   // Outer border ring

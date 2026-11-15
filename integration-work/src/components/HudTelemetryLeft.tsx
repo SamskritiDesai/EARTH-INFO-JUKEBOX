@@ -35,12 +35,24 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
 
     const updateSmoothing = () => {
       animId = requestAnimationFrame(updateSmoothing);
-      setSmoothed(prev => ({
-        sst: prev.sst + (telemetry.sst.tempC - prev.sst) * lerpFactor,
-        strength: prev.strength + (telemetry.aerosols.strength - prev.strength) * lerpFactor,
-        co2: prev.co2 + (telemetry.co2.ppm - prev.co2) * lerpFactor,
-        forest: prev.forest + (telemetry.forest.normalized - prev.forest) * lerpFactor
-      }));
+      setSmoothed(prev => {
+        const next = {
+          sst: prev.sst + (telemetry.sst.tempC - prev.sst) * lerpFactor,
+          strength: prev.strength + (telemetry.aerosols.strength - prev.strength) * lerpFactor,
+          co2: prev.co2 + (telemetry.co2.ppm - prev.co2) * lerpFactor,
+          forest: prev.forest + (telemetry.forest.normalized - prev.forest) * lerpFactor
+        };
+        // converged -> keep the same object so React skips the re-render
+        const close =
+          Math.abs(next.sst - telemetry.sst.tempC) < 0.02 &&
+          Math.abs(next.strength - telemetry.aerosols.strength) < 0.0005 &&
+          Math.abs(next.co2 - telemetry.co2.ppm) < 0.02 &&
+          Math.abs(next.forest - telemetry.forest.normalized) < 0.0005;
+        return close ? {
+          sst: telemetry.sst.tempC, strength: telemetry.aerosols.strength,
+          co2: telemetry.co2.ppm, forest: telemetry.forest.normalized
+        } : next;
+      });
     };
     updateSmoothing();
     return () => cancelAnimationFrame(animId);
@@ -154,8 +166,8 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
   }, [telemetry]);
 
   // Format Lat / Lon
-  const latStr = `${Math.abs(telemetry.lat).toFixed(2)}┬░ ${telemetry.lat >= 0 ? 'N' : 'S'}`;
-  const lonStr = `${Math.abs(telemetry.lon).toFixed(2)}┬░ ${telemetry.lon >= 0 ? 'E' : 'W'}`;
+  const latStr = `${Math.abs(telemetry.lat).toFixed(2)}° ${telemetry.lat >= 0 ? 'N' : 'S'}`;
+  const lonStr = `${Math.abs(telemetry.lon).toFixed(2)}° ${telemetry.lon >= 0 ? 'E' : 'W'}`;
 
   // Param List
   const params: ParameterId[] = ['sst', 'aerosols', 'co2', 'forest'];
@@ -241,7 +253,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
             <span className="label">TERRITORY:</span>
             <span className="val-cyan" title={telemetry.nearestRegion}>
               {telemetry.nearestRegion.length > 20
-                ? telemetry.nearestRegion.substring(0, 19) + 'ΓÇª'
+                ? telemetry.nearestRegion.substring(0, 19) + '…'
                 : telemetry.nearestRegion}
             </span>
           </div>
@@ -271,10 +283,12 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
           {/* CO2 */}
           <div className="telemetry-line">
             <span className="label">3. DYAMOND CO₂:</span>
-            {telemetry.co2.available ? (
+            {!telemetry.co2.available ? (
+              <span className="val-crimson">[UNAVAILABLE]</span>
+            ) : telemetry.co2.plume ? (
               <span className="val-magenta">{smoothed.co2.toFixed(1)} ppm</span>
             ) : (
-              <span className="val-crimson">[UNAVAILABLE]</span>
+              <span className="val-magenta" title="No CO2 plume in the DYAMOND layer at this spot">≤380 ppm · NO PLUME</span>
             )}
           </div>
 

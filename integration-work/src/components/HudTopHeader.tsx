@@ -21,6 +21,8 @@ interface HudTopHeaderProps {
 const FRAME_LABELS: Record<ParameterId, string> = {
   sst: 'SST / ECCO2', aerosols: 'AEROSOLS / GEOS', co2: 'CO₂ / DYAMOND', forest: 'BIOSPHERE'
 };
+// Short labels so each slider fits on ONE line inside the 48px header bar
+const FRAME_SHORT: Record<ParameterId, string> = { sst: 'SST', aerosols: 'AERO', co2: 'CO₂', forest: 'BIO' };
 
 export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
   frameInfo, onFrameChange, datasetLoading, datasetError,
@@ -48,18 +50,19 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
       </div>
 
       <div className="timeline-selector-block dataset-frame-selector">
-        <div className="timeline-header-row">
-          <span className="timeline-title">INDEPENDENT NASA FRAMES:</span>
-          {datasetLoading && <span className="badge-warning-crimson">LOADING DATASETS…</span>}
-          {!datasetLoading && !datasetError && <span className="badge-crt-green">4 DATASETS READY</span>}
-          {datasetError && <span className="badge-warning-crimson" title={datasetError}>DATA LOAD ERROR</span>}
-        </div>
+        {/* Status badge only shows while loading / on error (overlaid, takes no height) */}
+        {(datasetLoading || datasetError) && (
+          <div className="timeline-header-row dataset-status-overlay">
+            {datasetLoading && <span className="badge-warning-crimson">LOADING DATASETS…</span>}
+            {datasetError && <span className="badge-warning-crimson" title={datasetError}>DATA LOAD ERROR</span>}
+          </div>
+        )}
         <div className="dataset-frame-grid">
           {params.map(param => {
             const info = frameInfo[param];
             return (
-              <label className="dataset-frame-control" key={param} title={`${info.period}. ${info.label}`}>
-                <span>{FRAME_LABELS[param]}</span>
+              <label className="dataset-frame-control" key={param} title={`${FRAME_LABELS[param]} — ${info.period}. ${info.label}`}>
+                <span>{FRAME_SHORT[param]}</span>
                 <input
                   type="range" min={0} max={info.count - 1} value={info.index}
                   disabled={datasetLoading || !!datasetError}

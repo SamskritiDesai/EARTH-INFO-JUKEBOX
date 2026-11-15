@@ -66,8 +66,8 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
     return () => cancelAnimationFrame(animId);
   }, []);
 
-  // Format Scan Angle as 3-digit padded number: e.g. "045┬░"
-  const scanAngleStr = `${Math.floor(scanAngle % 360).toString().padStart(3, '0')}┬░`;
+  // Format Scan Angle as 3-digit padded number: e.g. "045°"
+  const scanAngleStr = `${Math.floor(scanAngle % 360).toString().padStart(3, '0')}°`;
 
   // Build Dynamic Live Sonic Transcript
   const activeNotes = synthEngine.getActiveNotes();
@@ -242,7 +242,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
                 onClick={() => onApplyPreset(preset)}
                 title={`User Saved Route: ${preset.subtitle}`}
               >
-                Γÿà {preset.title}
+                ★ {preset.title}
               </button>
             ))}
           </div>

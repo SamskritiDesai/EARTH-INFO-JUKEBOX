@@ -47,7 +47,7 @@ export const NasaLoaderDrawer: React.FC<NasaLoaderDrawerProps> = ({
 
         <div className="drawer-body">
           <p className="drawer-description">
-            Ingest custom 2:1 equirectangular (.png / .jpg) imagery or 360├ù180 Float32 JSON matrices exported directly from NASA SVS, ECCO2, or MODIS datasets to re-map Earth telemetry layers.
+            Ingest custom 2:1 equirectangular (.png / .jpg) imagery or 360×180 Float32 JSON matrices exported directly from NASA SVS, ECCO2, or MODIS datasets to re-map Earth telemetry layers.
           </p>
 
           {/* Target Layer Selector */}

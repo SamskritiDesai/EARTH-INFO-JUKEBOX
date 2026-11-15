@@ -42,7 +42,7 @@ export interface SampledEarthTelemetry {
   lat: number; lon: number; nearestRegion: string; isWater: boolean;
   sst: { tempC: number; normalized: number; available: boolean };
   aerosols: { blackCarbon: number; dust: number; seaSalt: number; sulfate: number; strength: number; normalized: number; available: boolean };
-  co2: { ppm: number; normalized: number; available: boolean };
+  co2: { ppm: number; normalized: number; available: boolean; plume: boolean };
   forest: { greenness: number; chlorophyll: number; normalized: number; available: boolean };
 }
 export interface DatasetFrameInfo { index: number; count: number; label: string; period: string; }
@@ -114,13 +114,16 @@ class EarthDataEngine {
     const aerIdx = this.pixel(lat, lon, AER_W, AER_H);
     const co2Idx = this.pixel(lat, lon, CO2_W, CO2_H);
     const bioIdx = this.pixel(lat, lon, BIO_W, BIO_H);
-    const sstOffset = this.frames.sst * SST_BYTES + sstIdx * 2;
+    // SST + biosphere are stored as two planes per frame: [class plane][value plane]
+    const sstClassOff = this.frames.sst * SST_BYTES + sstIdx;
+    const sstValueOff = sstClassOff + SST_W * SST_H;
     const aerOffset = this.frames.aerosols * AER_BYTES + aerIdx * 5;
     const co2Offset = this.frames.co2 * CO2_BYTES + co2Idx * 2;
-    const bioOffset = this.frames.forest * BIO_BYTES + bioIdx * 2;
+    const bioClassOff = this.frames.forest * BIO_BYTES + bioIdx;
+    const bioValueOff = bioClassOff + BIO_W * BIO_H;
 
-    const sstClass = this.sst ? this.sst[sstOffset] : 1;
-    const tempC = this.sst ? this.sst[sstOffset + 1] / 255 * 30 : 0;
+    const sstClass = this.sst ? this.sst[sstClassOff] : 1;
+    const tempC = this.sst ? this.sst[sstValueOff] / 255 * 30 : 0;
     const aer = this.aerosols;
     const blackCarbon = aer ? aer[aerOffset] / 255 : 0;
     const dust = aer ? aer[aerOffset + 1] / 255 : 0;
@@ -130,19 +133,21 @@ class EarthDataEngine {
     const ppmIndex = this.co2 ? this.co2[co2Offset] : 0;
     const density = this.co2 ? this.co2[co2Offset + 1] : 0;
     const ppm = 380 + ppmIndex / 255 * 80;
-    const bioClass = this.bio ? this.bio[bioOffset] : 2;
-    const bioValue = this.bio ? this.bio[bioOffset + 1] / 255 : 0;
+    const bioClass = this.bio ? this.bio[bioClassOff] : 2;
+    const bioValue = this.bio ? this.bio[bioValueOff] / 255 : 0;
     const isWater = this.sst ? sstClass === 0 : bioClass === 0;
     const sstAvailable = !!this.sst && sstClass === 0;
     const aerAvailable = !!this.aerosols && strength > 0;
-    const co2Available = !!this.co2 && ppmIndex > 0 && density > 0;
+    // 'plume' = the model has a CO2 cloud here; everywhere else the file has 0 (= background, not missing data)
+    const co2Plume = !!this.co2 && ppmIndex > 0 && density > 0;
+    const co2Available = !!this.co2;
     const bioAvailable = !!this.bio && (bioClass === 0 || bioClass === 1);
     return {
       lat, lon, nearestRegion: this.resolveNearestLandmark(lat, lon, isWater),
       isWater,
       sst: { tempC: Number(tempC.toFixed(1)), normalized: tempC / 30, available: sstAvailable },
       aerosols: { blackCarbon, dust, seaSalt, sulfate, strength, normalized: strength, available: aerAvailable },
-      co2: { ppm: Number(ppm.toFixed(1)), normalized: ppmIndex / 255, available: co2Available },
+      co2: { ppm: Number(ppm.toFixed(1)), normalized: co2Plume ? ppmIndex / 255 : 0, available: co2Available, plume: co2Plume },
       forest: {
         greenness: bioClass === 1 ? bioValue : 0,
         chlorophyll: bioClass === 0 ? bioValue : 0,
@@ -181,9 +186,9 @@ class EarthDataEngine {
     for (let i = 0; i < width * height; i++) {
       const p = i * 4;
       if (param === 'sst' && this.sst) {
-        const o = frame * SST_BYTES + i * 2;
-        if (this.sst[o] !== 0) continue;
-        const n = this.sst[o + 1] / 255;
+        const base = frame * SST_BYTES;
+        if (this.sst[base + i] !== 0) continue;           // class plane: 0 = ocean
+        const n = this.sst[base + width * height + i] / 255; // value plane
         const rgb = n < .33 ? [0, Math.round(n * 3 * 220), 255] : n < .66 ? [0, 220, Math.round((.66 - n) * 3 * 255)] : [255, Math.round((1 - n) * 150), 20];
         out[p] = rgb[0]; out[p+1] = rgb[1]; out[p+2] = rgb[2]; out[p+3] = 205;
       } else if (param === 'aerosols' && this.aerosols) {
@@ -199,11 +204,17 @@ class EarthDataEngine {
         const idx = this.co2[o], density = this.co2[o+1];
         if (!idx || !density) continue;
         const n = idx / 255;
-        out[p] = Math.round(n * 255); out[p+1] = Math.round(Math.sin(n * Math.PI) * 220);
-        out[p+2] = Math.round((1-n) * 130 + n * 80); out[p+3] = Math.round(35 + density * .65);
+        // emerald (0,221,85) -> amber (255,170,0) -> magenta (255,17,85), same as the legend bar
+        const t = n < .5 ? n * 2 : (n - .5) * 2;
+        const a = n < .5 ? [0, 221, 85] : [255, 170, 0];
+        const b = n < .5 ? [255, 170, 0] : [255, 17, 85];
+        out[p] = Math.round(a[0] + (b[0] - a[0]) * t);
+        out[p+1] = Math.round(a[1] + (b[1] - a[1]) * t);
+        out[p+2] = Math.round(a[2] + (b[2] - a[2]) * t);
+        out[p+3] = Math.round(35 + density * .65);
       } else if (param === 'forest' && this.bio) {
-        const o = frame * BIO_BYTES + i * 2;
-        const cls = this.bio[o], value = this.bio[o+1];
+        const base = frame * BIO_BYTES;
+        const cls = this.bio[base + i], value = this.bio[base + width * height + i];
         if (cls === 1) {
           out[p] = Math.round(value * .22); out[p+1] = Math.round(75 + value * .7);
           out[p+2] = Math.round(value * .12); out[p+3] = Math.round(55 + value * .65);

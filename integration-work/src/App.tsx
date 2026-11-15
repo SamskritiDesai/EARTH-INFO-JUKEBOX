@@ -105,6 +105,11 @@ export const App: React.FC = () => {
     synthEngine.updateTelemetry(data);
   }, [probeLat, probeLon, dataVersion]);
 
+  const handleProbeChange = useCallback((lat: number, lon: number) => {
+    setProbeLat(lat);
+    setProbeLon(lon);
+  }, []);
+
   const handleFrameChange = (param: ParameterId, index: number) => {
     earthDataEngine.setFrame(param, index);
     setDataVersion(v => v + 1);
@@ -328,10 +333,7 @@ export const App: React.FC = () => {
                 dataVersion={dataVersion}
                 probeLat={probeLat}
                 probeLon={probeLon}
-                onProbeChange={(lat, lon) => {
-                  setProbeLat(lat);
-                  setProbeLon(lon);
-                }}
+                onProbeChange={handleProbeChange}
                 autoPlayEnabled={autoPlayEnabled}
                 autoPlaySource={selectedSource}
                 autoPlayDest={selectedDest}
@@ -357,7 +359,7 @@ export const App: React.FC = () => {
                   <div className="callout-reticle-line" />
                   <div className="callout-reticle-badge">
                     <span className="reticle-latlon">
-                      {Math.abs(probeLat).toFixed(1)}┬░{probeLat >= 0 ? 'N' : 'S'} / {Math.abs(probeLon).toFixed(1)}┬░{probeLon >= 0 ? 'E' : 'W'}
+                      {Math.abs(probeLat).toFixed(1)}°{probeLat >= 0 ? 'N' : 'S'} / {Math.abs(probeLon).toFixed(1)}°{probeLon >= 0 ? 'E' : 'W'}
                     </span>
                     <span className="reticle-place">{telemetry.nearestRegion}</span>
                   </div>
