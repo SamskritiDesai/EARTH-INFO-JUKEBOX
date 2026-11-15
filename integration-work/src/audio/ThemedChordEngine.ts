@@ -110,6 +110,12 @@ export class ThemedChordEngine {
   private kalimbaDelay: DelayNode | null = null;
   private kalimbaFeedback: GainNode | null = null;
 
+  // Biosphere sequencer: plays continuously (not only when the probe moves) and follows the data
+  private lastTelemetry: SampledEarthTelemetry | null = null;
+  private forestTimer: ReturnType<typeof setTimeout> | null = null;
+  private forestStep = 0;
+  private forestLastNote: { info: ActiveNoteInfo; at: number } | null = null;
+
   // Real-time smoothed chord tracking & throttling (transitions every 2-4 seconds)
   private lastChordSwitchTime = 0;
   private chordIntervalSec = 3.0; // relaxed 75-80 BPM pacing
@@ -219,6 +225,7 @@ export class ThemedChordEngine {
     this.initAerosolsVoice();
     this.initCo2Voice();
     this.initForestVoice();
+    this.startForestSequencer();
   }
 
   // Create gentle synthetic plate impulse response for soothing ambient decay
@@ -353,31 +360,95 @@ export class ThemedChordEngine {
     this.kalimbaGain.connect(this.kalimbaDelay);
   }
 
-  // Trigger gentle felt piano / kalimba notes on forest canopy density changes
-  public triggerKalimbaNote(freq: number, velocity: number = 0.5) {
-    if (!this.ctx || !this.kalimbaGain || !this.channelControls.forest.volume || this.channelControls.forest.muted) return;
+  // One biosphere note. Land = woody kalimba pluck with a soft upper tine; ocean chlorophyll = glassy sine bell
+  // (two stacked notes), so you can hear land and sea apart.
+  public triggerKalimbaNote(freq: number, velocity: number = 0.5, kind: 'land' | 'ocean' = 'land') {
+    if (!this.ctx || !this.kalimbaGain || this.channelControls.forest.muted) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
+    const peak = Math.min(0.35, 0.08 + velocity * 0.3);
+    const decay = kind === 'ocean' ? 2.4 : 1.4;
 
-    const osc = ctx.createOscillator();
-    osc.type = 'triangle'; // woody, soft felt-hammer timbre
-    osc.frequency.setValueAtTime(freq, now);
+    const make = (type: OscillatorType, f: number, gainScale: number, dec: number) => {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, now);
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.exponentialRampToValueAtTime(peak * gainScale, now + 0.03);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + dec);
+      osc.connect(env);
+      env.connect(this.kalimbaGain!);
+      osc.start(now);
+      osc.stop(now + dec + 0.1);
+    };
 
-    const env = ctx.createGain();
-    // Warm soothing attack and gentle decay
-    env.gain.setValueAtTime(0.0001, now);
-    env.gain.exponentialRampToValueAtTime(Math.min(0.35, velocity * 0.4), now + 0.04);
-    env.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+    if (kind === 'ocean') {
+      make('sine', freq, 1, decay);
+      make('sine', freq * 1.5, 0.45, decay * 0.8); // perfect fifth above
+    } else {
+      make('triangle', freq, 1, decay);
+      make('sine', freq * 2, 0.25, decay * 0.45);   // short tine
+    }
+  }
 
-    osc.connect(env);
-    env.connect(this.kalimbaGain);
+  // C major pentatonic across ~2.5 octaves (C3..E5). Index into this = pitch.
+  private static readonly PENT: { name: string; freq: number }[] = [
+    { name: 'C3', freq: SCALE_FREQS.C3 }, { name: 'D3', freq: SCALE_FREQS.D3 }, { name: 'E3', freq: SCALE_FREQS.E3 },
+    { name: 'G3', freq: SCALE_FREQS.G3 }, { name: 'A3', freq: SCALE_FREQS.A3 }, { name: 'C4', freq: SCALE_FREQS.C4 },
+    { name: 'D4', freq: SCALE_FREQS.D4 }, { name: 'E4', freq: SCALE_FREQS.E4 }, { name: 'G4', freq: SCALE_FREQS.G4 },
+    { name: 'A4', freq: SCALE_FREQS.A4 }, { name: 'C5', freq: SCALE_FREQS.C5 }, { name: 'D5', freq: SCALE_FREQS.D5 },
+    { name: 'E5', freq: SCALE_FREQS.E5 }
+  ];
 
-    osc.start(now);
-    osc.stop(now + 1.8);
+  // Biosphere step sequencer: 8 steps per bar at the engine tempo.
+  // The data decides everything audible:
+  //   level (greenness / chlorophyll, rescaled 0..1) -> pitch height AND how many of the 8 steps play (1..6)
+  //   land -> kalimba, medium tempo; ocean chlorophyll -> bell dyads on every other step, a register higher
+  //   ice / snow / no data -> silent
+  private startForestSequencer() {
+    if (this.forestTimer) return;
+    const stepSec = 60 / 78 / 2; // eighth notes at 78 BPM
+    const contour = [0, 2, 1, 3, 1, 4, 2, 3]; // gentle melodic shape, offset up from the data-driven centre note
+    const tick = () => {
+      this.forestTimer = setTimeout(tick, stepSec * 1000);
+      const t = this.lastTelemetry;
+      if (!this.ctx || !this.isPlaying || !t || !t.forest.available || t.forest.kind === 'none') {
+        this.forestStep++;
+        return;
+      }
+      const step = this.forestStep++ % 8;
+      const level = Math.max(0, Math.min(1, t.forest.normalized));
+      const isOcean = t.forest.kind === 'ocean';
+      // Euclidean-style spread: the notes are spaced evenly across the bar.
+      // Land: 1..6 notes over 8 steps. Ocean: 1..3 bells over the 4 even steps.
+      let active: boolean;
+      if (isOcean) {
+        if (step % 2 === 1) return;
+        const slot = step >> 1, hits = 1 + Math.round(level * 2);
+        active = Math.floor(((slot + 1) * hits) / 4) > Math.floor((slot * hits) / 4);
+      } else {
+        const hits = 1 + Math.round(level * 5);
+        active = Math.floor(((step + 1) * hits) / 8) > Math.floor((step * hits) / 8);
+      }
+      if (!active) return;
+
+      const P = ThemedChordEngine.PENT;
+      const centre = Math.round(level * (isOcean ? 6 : 7)) + (isOcean ? 3 : 0);
+      const idx = Math.max(0, Math.min(P.length - 1, centre + contour[step] - 1));
+      const note = P[idx];
+      this.triggerKalimbaNote(note.freq, 0.3 + level * 0.6, t.forest.kind as 'land' | 'ocean');
+      this.forestLastNote = {
+        at: performance.now(),
+        info: { note: `${isOcean ? 'Ocean bell' : 'Kalimba'} ${note.name}`, freq: note.freq, channel: 'forest', intensity: level }
+      };
+    };
+    this.forestTimer = setTimeout(tick, stepSec * 1000);
   }
 
   // Smooth real-time modulation driven by Earth Telemetry
   public updateTelemetry(telemetry: SampledEarthTelemetry) {
+    this.lastTelemetry = telemetry;
     if (!this.ctx || !this.isUnlocked) return;
     const ctx = this.ctx;
     const now = ctx.currentTime;
@@ -473,13 +544,6 @@ export class ThemedChordEngine {
         }
       });
       activeList.push({ note: chord.name + ' Pad', freq: chord.aero[0], channel: 'aerosols', intensity: telemetry.aerosols.normalized });
-    }
-
-    // Trigger Kalimba note if biosphere signal is present
-    if (telemetry.forest.available && telemetry.forest.normalized > 0.08) {
-      const kalimbaFreq = chord.kalimba;
-      this.triggerKalimbaNote(kalimbaFreq, telemetry.forest.normalized);
-      activeList.push({ note: 'Kalimba', freq: kalimbaFreq, channel: 'forest', intensity: telemetry.forest.normalized });
     }
 
     if (telemetry.co2.available) {
@@ -587,7 +651,9 @@ export class ThemedChordEngine {
   }
 
   public getActiveNotes(): ActiveNoteInfo[] {
-    return this.activeNotes;
+    const f = this.forestLastNote;
+    const forestNow = f && performance.now() - f.at < 1200 && this.lastTelemetry?.forest.available ? [f.info] : [];
+    return [...this.activeNotes.filter(n => n.channel !== 'forest'), ...forestNow];
   }
 
   public getAudioFrequencyData(array: Uint8Array) {

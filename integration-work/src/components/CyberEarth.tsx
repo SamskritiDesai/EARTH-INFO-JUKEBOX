@@ -14,6 +14,7 @@ interface CyberEarthProps {
   autoPlayDest: Landmark | null;
   autoPlayProgress: number; // 0..1
   isScanPlaneActive: boolean;
+  hoverScanEnabled?: boolean;
   onReticleScreenPosChange?: (pos: { x: number; y: number } | null) => void;
 }
 
@@ -52,6 +53,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   autoPlayDest,
   autoPlayProgress,
   isScanPlaneActive,
+  hoverScanEnabled = true,
   onReticleScreenPosChange
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -291,6 +293,8 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   // Drag = spin the globe. Click (no real movement) = place the probe. Shift+drag = scrub the probe.
   const dragStartRef = useRef({ x: 0, y: 0 });
   const dragMovedRef = useRef(false);
+  const lastHoverTimeRef = useRef(0);
+  const lastHoverProbeRef = useRef<{ lat: number; lon: number } | null>(null);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     isDraggingRef.current = true;
@@ -301,7 +305,18 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingRef.current) return;
+    if (!isDraggingRef.current) {
+      // Hover scan: the probe follows the pointer across the globe (no clicking needed).
+      // Off while the satellite route is driving the probe, and for touch (where moving = dragging).
+      if (hoverScanEnabled && !autoPlayEnabled && e.pointerType === 'mouse') {
+        const nowMs = performance.now();
+        if (nowMs - lastHoverTimeRef.current > 70) {
+          lastHoverTimeRef.current = nowMs;
+          performRaycast(e.clientX, e.clientY, true);
+        }
+      }
+      return;
+    }
 
     // ignore tiny jitters so a click does not turn into a drag
     if (!dragMovedRef.current) {
@@ -336,7 +351,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   };
 
   // Perform Exact Raycast against the rotating sphere
-  const performRaycast = useCallback((clientX: number, clientY: number) => {
+  const performRaycast = useCallback((clientX: number, clientY: number, hover = false) => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
     const globeMesh = globeMeshRef.current;
@@ -355,6 +370,12 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       // Convert world point to globeMesh local space (accounts for all rotations/scales)
       const localPoint = globeMesh.worldToLocal(hitPointWorld.clone());
       const { lat, lon } = vector3ToLatLon(localPoint, GLOBE_RADIUS);
+      if (hover) {
+        // skip tiny moves so telemetry and audio are not refreshed for nothing
+        const lp = lastHoverProbeRef.current;
+        if (lp && Math.abs(lp.lat - lat) < 0.4 && Math.abs(lp.lon - lon) < 0.4) return;
+        lastHoverProbeRef.current = { lat, lon };
+      }
       onProbeChange(lat, lon);
     }
   }, [onProbeChange]);
@@ -460,6 +481,9 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       onContextMenu={(e) => e.preventDefault()}
+      role="application"
+      tabIndex={0}
+      aria-label="Interactive Earth globe. Drag to rotate. Move the mouse over it to scan places, or use the arrow keys to move the probe."
       style={{
         width: '100%',
         height: '100%',

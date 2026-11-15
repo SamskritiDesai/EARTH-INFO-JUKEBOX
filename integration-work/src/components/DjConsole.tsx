@@ -160,7 +160,7 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
                       disabled={!isAvail}
                       onChange={(e) => handleVolumeChange(pId, Number(e.target.value))}
                       className="vertical-slider"
-                      aria-label={`${meta.name} Volume Fader`}
+                      aria-label={`${meta.shortLabel} volume`} aria-valuetext={`${Math.round(ctrl.volume * 100)} percent`}
                     />
                     <span className="fader-val-label font-vt323">
                       {Math.round(ctrl.volume * 100)}%
@@ -180,6 +180,8 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
                         disabled={!isAvail}
                         onChange={(e) => handleCutoffChange(pId, Number(e.target.value))}
                         className="hud-mini-range"
+                        aria-label={`${meta.shortLabel} filter`}
+                        aria-valuetext={`${Math.round(ctrl.cutoff)} hertz`}
                       />
                       <span className="knob-val">{Math.round(ctrl.cutoff)}Hz</span>
                     </div>
@@ -191,6 +193,8 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
                         onClick={() => handleToggleMute(pId)}
                         disabled={!isAvail}
                         title="Mute Channel"
+                        aria-label={`${meta.shortLabel} mute`}
+                        aria-pressed={ctrl.muted}
                       >
                         M
                       </button>
@@ -199,6 +203,8 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
                         onClick={() => handleToggleSolo(pId)}
                         disabled={!isAvail}
                         title="Solo Channel"
+                        aria-label={`${meta.shortLabel} solo`}
+                        aria-pressed={ctrl.solo}
                       >
                         S
                       </button>
@@ -232,7 +238,7 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
               value={crossfaderVal}
               onChange={(e) => handleCrossfaderChange(Number(e.target.value))}
               className="hud-horizontal-crossfader"
-              aria-label="DJ Crossfader Bank A to Bank B"
+              aria-label="Crossfader" aria-valuetext={crossfaderVal < -0.1 ? `Bank A ${Math.round(Math.abs(crossfaderVal) * 100)} percent` : crossfaderVal > 0.1 ? `Bank B ${Math.round(crossfaderVal * 100)} percent` : 'centre'}
             />
           </div>
 
@@ -254,7 +260,7 @@ export const DjConsole: React.FC<DjConsoleProps> = ({ telemetry, onHoverParam })
       </div>
 
       {/* 16-Bit Pixel Keyboard Strip along bottom */}
-      <div className="pixel-keyboard-strip" aria-label="Harmonic Pixel Keyboard">
+      <div className="pixel-keyboard-strip" aria-hidden="true">
         <div className="keyboard-header-label font-vt323">
           <Music size={12} style={{ display: 'inline', marginRight: 4 }} />
           <span>HARMONIC MATRIX: C MAJOR PENTATONIC // F LYDIAN</span>

@@ -36,7 +36,7 @@ body, html {
   background-color: #000000;
   color: #ffffff;
   font-family: 'Share Tech Mono', monospace;
-  font-size: 13px;
+  font-size: 15px;
   -webkit-font-smoothing: none;
 }
 
@@ -141,14 +141,14 @@ body, html {
 
 .brand-title {
   font-family: 'Press Start 2P', monospace;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
   text-shadow: 0 0 6px rgba(0, 240, 255, 0.8);
   letter-spacing: 1px;
 }
 
 .brand-subtitle {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-muted);
   font-family: 'VT323', monospace;
   letter-spacing: 1px;
@@ -158,7 +158,7 @@ body, html {
   background-color: var(--green-matrix);
   color: #000000;
   font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
+  font-size: 10px;
   padding: 1px 4px;
   font-weight: bold;
 }
@@ -178,7 +178,7 @@ body, html {
 
 .timeline-title {
   font-family: 'VT323', monospace;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--white-crisp);
 }
 
@@ -187,7 +187,7 @@ body, html {
   border: 1px solid var(--crimson-alert);
   color: var(--crimson-alert);
   font-family: 'VT323', monospace;
-  font-size: 13px;
+  font-size: 15px;
   padding: 0 4px;
 }
 
@@ -201,7 +201,7 @@ body, html {
   border: 1px solid #0055aa;
   color: #88bbff;
   font-family: 'VT323', monospace;
-  font-size: 15px;
+  font-size: 17px;
   padding: 1px 8px;
   cursor: pointer;
   transition: background 0.1s;
@@ -234,7 +234,7 @@ body, html {
   border: 2px solid var(--panel-blue-border);
   color: #ffffff;
   font-family: 'VT323', monospace;
-  font-size: 15px;
+  font-size: 17px;
   padding: 3px 8px;
   cursor: pointer;
 }
@@ -276,7 +276,7 @@ body, html {
 
 .hud-utc-badge {
   color: #00ffcc;
-  font-size: 16px;
+  font-size: 18px;
   padding: 2px 6px;
   background-color: #001122;
   border: 1px solid #005577;
@@ -294,8 +294,8 @@ body, html {
 
 /* Left & Right HUD Columns */
 .hud-telemetry-left, .hud-right-panel {
-  width: 310px;
-  min-width: 310px;
+  width: 346px;
+  min-width: 346px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -315,7 +315,7 @@ body, html {
   align-items: center;
   justify-content: space-between;
   font-family: 'Press Start 2P', monospace;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--cyan-bright);
   border-bottom: 1px solid #004488;
   padding-bottom: 4px;
@@ -363,7 +363,7 @@ body, html {
 
 /* Readout Lines */
 .telemetry-readout-rows {
-  font-size: 16px;
+  font-size: 18px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -426,13 +426,13 @@ body, html {
 
 .card-param-name {
   font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
+  font-size: 10px;
   color: #ffffff;
 }
 
 .pill-status {
   font-family: 'VT323', monospace;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 4px;
 }
 
@@ -450,12 +450,12 @@ body, html {
   background-color: var(--crimson-alert);
   color: #fff;
   font-family: 'VT323', monospace;
-  font-size: 12px;
+  font-size: 14px;
   padding: 0 4px;
 }
 
 .card-voice-tag {
-  font-size: 13px;
+  font-size: 15px;
   color: #88c0ff;
 }
 
@@ -503,7 +503,7 @@ body, html {
   padding: 2px 6px;
   display: flex;
   flex-direction: column;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .reticle-latlon {
@@ -513,7 +513,7 @@ body, html {
 
 .reticle-place {
   color: #ffffff;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 /* Map Color Scale Bar Dock */
@@ -530,7 +530,7 @@ body, html {
 }
 
 .scale-title {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
   border-bottom: 1px solid #004488;
 }
@@ -544,7 +544,7 @@ body, html {
 .scale-item-header {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .scale-param-name { color: #ffffff; }
@@ -574,7 +574,7 @@ body, html {
 .scale-range-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 13px;
   color: #aaa;
 }
 
@@ -590,7 +590,7 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .counter-row {
@@ -636,7 +636,7 @@ body, html {
 }
 
 .vu-label {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
 }
 
@@ -654,7 +654,7 @@ body, html {
 }
 
 .dropdown-label {
-  font-size: 14px;
+  font-size: 16px;
   color: #88c0ff;
 }
 
@@ -663,7 +663,7 @@ body, html {
   border: 1px solid var(--panel-blue-border);
   color: #ffffff;
   font-family: 'VT323', monospace;
-  font-size: 16px;
+  font-size: 18px;
   padding: 2px 4px;
 }
 
@@ -676,7 +676,7 @@ body, html {
 .tempo-slider-header {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .hud-pixel-range {
@@ -688,7 +688,7 @@ body, html {
   background-color: #003366;
   border: 1px solid var(--cyan-bright);
   color: var(--cyan-bright);
-  font-size: 14px;
+  font-size: 16px;
   padding: 3px;
   justify-content: center;
   margin-top: 2px;
@@ -705,7 +705,7 @@ body, html {
 }
 
 .presets-header-title {
-  font-size: 13px;
+  font-size: 15px;
   color: #88bbff;
 }
 
@@ -720,7 +720,7 @@ body, html {
   border: 1px solid #0055aa;
   color: #cceeff;
   font-family: 'VT323', monospace;
-  font-size: 13px;
+  font-size: 15px;
   padding: 1px 6px;
   cursor: pointer;
 }
@@ -746,7 +746,7 @@ body, html {
   background-color: var(--amber-warning);
   color: #000;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .transcript-content {
@@ -757,7 +757,7 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 15px;
+  font-size: 17px;
   overflow-y: auto;
 }
 
@@ -770,7 +770,7 @@ body, html {
   margin-top: auto;
   border-top: 1px dashed #004477;
   padding-top: 2px;
-  font-size: 12px;
+  font-size: 14px;
   color: #6699bb;
 }
 
@@ -821,12 +821,12 @@ body, html {
 
 .channel-index {
   color: var(--cyan-bright);
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .channel-label {
   font-family: 'Press Start 2P', monospace;
-  font-size: 7px;
+  font-size: 10px;
   color: #ffffff;
 }
 
@@ -835,7 +835,7 @@ body, html {
   border: 1px solid var(--crimson-alert);
   color: var(--crimson-alert);
   font-family: 'VT323', monospace;
-  font-size: 12px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -844,7 +844,7 @@ body, html {
 }
 
 .channel-tone-badge {
-  font-size: 13px;
+  font-size: 15px;
   color: #88c0ff;
   text-align: center;
 }
@@ -872,7 +872,7 @@ body, html {
 }
 
 .fader-val-label {
-  font-size: 13px;
+  font-size: 15px;
   color: #ffffff;
 }
 
@@ -881,7 +881,7 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .knob-subgroup {
@@ -910,7 +910,7 @@ body, html {
   border: 1px solid #005588;
   color: #ffffff;
   font-family: 'VT323', monospace;
-  font-size: 14px;
+  font-size: 16px;
   padding: 1px 0;
   cursor: pointer;
 }
@@ -941,7 +941,7 @@ body, html {
 .crossfader-title {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
 }
 
@@ -953,7 +953,7 @@ body, html {
 .crossfader-banks-desc {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 14px;
   color: #88bbff;
 }
 
@@ -965,7 +965,7 @@ body, html {
 
 .crossfader-readout {
   text-align: center;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--green-matrix);
 }
 
@@ -984,7 +984,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--cyan-bright);
 }
 
@@ -1013,7 +1013,7 @@ body, html {
 }
 
 .keyboard-header-label {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
   white-space: nowrap;
 }
@@ -1032,7 +1032,7 @@ body, html {
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 2px;
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .white-key {
@@ -1066,7 +1066,7 @@ body, html {
   justify-content: space-between;
   border-bottom: 1px solid #0055aa;
   padding-bottom: 2px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .callout-tag { color: var(--green-matrix); }
@@ -1077,7 +1077,7 @@ body, html {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .callout-row {
@@ -1098,7 +1098,7 @@ body, html {
 }
 
 .callout-mapping-rule {
-  font-size: 13px;
+  font-size: 15px;
   color: #cceeff;
   margin-top: 2px;
   background-color: #021a3a;
@@ -1145,7 +1145,7 @@ body, html {
 
 .drawer-title {
   color: var(--cyan-bright);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
 }
 
@@ -1164,7 +1164,7 @@ body, html {
 }
 
 .drawer-description {
-  font-size: 14px;
+  font-size: 16px;
   color: #88c0ff;
 }
 
@@ -1175,7 +1175,7 @@ body, html {
 }
 
 .field-label {
-  font-size: 14px;
+  font-size: 16px;
   color: #ffffff;
 }
 
@@ -1192,7 +1192,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .radio-pill.active {
@@ -1218,7 +1218,7 @@ body, html {
 }
 
 .dropzone-text {
-  font-size: 15px;
+  font-size: 17px;
   color: #88bbdd;
   text-align: center;
 }
@@ -1240,7 +1240,7 @@ body, html {
 }
 
 .presets-title {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--cyan-bright);
 }
 
@@ -1258,7 +1258,7 @@ body, html {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .preset-item:hover {
@@ -1274,7 +1274,7 @@ body, html {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* Animations & Pulses */
@@ -1307,7 +1307,7 @@ body, html {
   min-width: 0;
   color: #88bbff;
   font-family: 'VT323', monospace;
-  font-size: 12px;
+  font-size: 14px;
 }
 .dataset-frame-control span {
   overflow: hidden;
@@ -1316,7 +1316,7 @@ body, html {
 }
 .dataset-frame-control strong {
   color: var(--cyan-bright);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: normal;
   white-space: nowrap;
 }
@@ -1350,6 +1350,65 @@ body, html {
   line-height: 1;
   height: 18px;
 }
-.dataset-frame-control span { font-size: 13px; line-height: 1; }
-.dataset-frame-control strong { font-size: 12px; line-height: 1; }
+.dataset-frame-control span { font-size: 15px; line-height: 1; }
+.dataset-frame-control strong { font-size: 14px; line-height: 1; }
 .dataset-frame-control input[type="range"] { grid-column: auto; min-width: 0; }
+
+
+/* =====================================================================
+   ACCESSIBILITY PASS - larger type, visible focus, screen-reader text.
+   (All text was bumped ~2px above; the header is re-tuned here so it keeps its 48px height and look.)
+   ===================================================================== */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Header stays at its original size: only a small bump */
+.hud-top-header .hud-pixel-btn { font-size: 16px; padding: 3px 7px; }
+.hud-utc-badge { font-size: 16px; }
+.brand-title { font-size: 14px; }
+.brand-subtitle { font-size: 10px; }
+.badge-crt-green { font-size: 8px; }
+.dataset-frame-control span { font-size: 14px; }
+.dataset-frame-control strong { font-size: 13px; }
+
+/* Panel titles are Press Start 2P (wide): let them wrap cleanly instead of overlapping */
+.telemetry-box-title { line-height: 1.5; gap: 6px; }
+.telemetry-box-title span:first-of-type { min-width: 0; overflow-wrap: anywhere; }
+
+/* Clear keyboard focus on every control */
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible, select:focus-visible,
+.cyber-earth-viewport:focus-visible {
+  outline: 3px solid #ffee00;
+  outline-offset: 2px;
+}
+
+/* Globe explore chip: hover-scan toggle + hint */
+.globe-hint-chip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 26;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  pointer-events: none;
+}
+.globe-hint-chip .hud-pixel-btn { pointer-events: auto; font-size: 16px; }
+.globe-hint-text {
+  font-size: 15px;
+  color: var(--text-muted);
+  background: rgba(0, 8, 24, 0.75);
+  padding: 1px 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse { animation: none !important; }
+}

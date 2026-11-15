@@ -33,14 +33,14 @@ export const NasaLoaderDrawer: React.FC<NasaLoaderDrawerProps> = ({
   };
 
   return (
-    <div className="nasa-drawer-backdrop" onClick={onClose}>
-      <div className="nasa-drawer-panel pixel-panel-blue font-vt323" onClick={(e) => e.stopPropagation()}>
+    <div className="nasa-drawer-backdrop" onClick={onClose} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}>
+      <div className="nasa-drawer-panel pixel-panel-blue font-vt323" role="dialog" aria-modal="true" aria-label="NASA dataset drawer" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
           <div className="drawer-title-wrap">
             <Database size={16} className="icon-cyan" />
             <span className="drawer-title">NASA SCIENTIFIC VISUALIZATION STUDIO (SVS) INGESTION DRAWER</span>
           </div>
-          <button className="btn-close-drawer" onClick={onClose}>
+          <button className="btn-close-drawer" onClick={onClose} aria-label="Close dataset drawer">
             <X size={16} />
           </button>
         </div>
@@ -79,6 +79,7 @@ export const NasaLoaderDrawer: React.FC<NasaLoaderDrawerProps> = ({
               accept=".png,.jpg,.jpeg,.json"
               onChange={handleFileUpload}
               className="dropzone-input"
+              aria-label="Upload texture file"
             />
           </div>
 
@@ -87,29 +88,33 @@ export const NasaLoaderDrawer: React.FC<NasaLoaderDrawerProps> = ({
             <div className="presets-title">PRELOADED NASA SVS MISSION ARCHIVES:</div>
             <div className="presets-list">
               <div
-                className="preset-item"
+                className="preset-item" role="button" tabIndex={0}
                 onClick={() => handleLoadPreset('ECCO2 High-Res Sea Surface Currents (SVS #3827)', 'sst')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLoadPreset('ECCO2 High-Res Sea Surface Currents (SVS #3827)', 'sst'); } }}
               >
                 <FileText size={14} className="icon-cyan" />
                 <span>NASA SVS #3827 - ECCO2 High-Res Global Ocean Currents & SST</span>
               </div>
               <div
-                className="preset-item"
+                className="preset-item" role="button" tabIndex={0}
                 onClick={() => handleLoadPreset('GEOS Global Aerosols Simulation (SVS #4655)', 'aerosols')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLoadPreset('GEOS Global Aerosols Simulation (SVS #4655)', 'aerosols'); } }}
               >
                 <FileText size={14} className="icon-amber" />
                 <span>NASA SVS #4655 - GEOS Forward Processing Global Aerosol Plumes</span>
               </div>
               <div
-                className="preset-item"
+                className="preset-item" role="button" tabIndex={0}
                 onClick={() => handleLoadPreset('DYAMOND Atmospheric CO2 Concentration (SVS #4866)', 'co2')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLoadPreset('DYAMOND Atmospheric CO2 Concentration (SVS #4866)', 'co2'); } }}
               >
                 <FileText size={14} className="icon-magenta" />
                 <span>NASA SVS #4866 - DYAMOND Ultra High-Res Atmospheric Carbon Dioxide</span>
               </div>
               <div
-                className="preset-item"
+                className="preset-item" role="button" tabIndex={0}
                 onClick={() => handleLoadPreset('GEDI Global Forest Canopy Height (SVS #5084)', 'forest')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleLoadPreset('GEDI Global Forest Canopy Height (SVS #5084)', 'forest'); } }}
               >
                 <FileText size={14} className="icon-green" />
                 <span>NASA SVS #5084 - GEDI ISS Spaceborne Lidar Canopy Structure</span>

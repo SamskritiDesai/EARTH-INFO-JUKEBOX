@@ -1,5 +1,8 @@
 // EARTH FM - NASA binary dataset engine
+import { describeWater, describeLand, withArticle, displayName } from './placeNames';
+
 export type ParameterId = 'sst' | 'aerosols' | 'co2' | 'forest';
+export type SurfaceKind = 'ocean' | 'coast' | 'land' | 'sea-ice' | 'land-ice';
 
 export interface ParameterMetadata {
   id: ParameterId; name: string; shortLabel: string; svsSource: string;
@@ -39,11 +42,11 @@ export const PARAMETERS: Record<ParameterId, ParameterMetadata> = {
 };
 
 export interface SampledEarthTelemetry {
-  lat: number; lon: number; nearestRegion: string; isWater: boolean;
+  lat: number; lon: number; nearestRegion: string; spokenPlace: string; isWater: boolean; surface: SurfaceKind;
   sst: { tempC: number; normalized: number; available: boolean };
   aerosols: { blackCarbon: number; dust: number; seaSalt: number; sulfate: number; strength: number; normalized: number; available: boolean };
   co2: { ppm: number; normalized: number; available: boolean; plume: boolean };
-  forest: { greenness: number; chlorophyll: number; normalized: number; available: boolean };
+  forest: { greenness: number; chlorophyll: number; normalized: number; available: boolean; kind: 'land' | 'ocean' | 'none' };
 }
 export interface DatasetFrameInfo { index: number; count: number; label: string; period: string; }
 
@@ -135,42 +138,45 @@ class EarthDataEngine {
     const ppm = 380 + ppmIndex / 255 * 80;
     const bioClass = this.bio ? this.bio[bioClassOff] : 2;
     const bioValue = this.bio ? this.bio[bioValueOff] / 255 : 0;
-    const isWater = this.sst ? sstClass === 0 : bioClass === 0;
-    const sstAvailable = !!this.sst && sstClass === 0;
+    // What is under the probe? The biosphere map is the reference for ice (class 2: sea ice, snow, ice sheets);
+    // the SST map's own mask tells ocean from land underneath that ice.
+    let surface: SurfaceKind;
+    if (this.bio) {
+      if (bioClass === 0) surface = 'ocean';
+      else if (bioClass === 1) surface = (this.sst && sstClass === 0) ? 'coast' : 'land';
+      else surface = (this.sst && sstClass === 0) ? 'sea-ice' : 'land-ice';
+    } else {
+      surface = (this.sst && sstClass === 0) ? 'ocean' : 'land';
+    }
+    const isWater = surface === 'ocean' || surface === 'sea-ice';
+    // No SST under sea ice: the SST file holds colour-bar artefacts there (up to ~28 C in the Arctic), which
+    // used to play warm ocean chords over the grey ice. Treat it as unavailable so audio and readout stay silent.
+    const sstAvailable = !!this.sst && sstClass === 0 && surface !== 'sea-ice';
     const aerAvailable = !!this.aerosols && strength > 0;
     // 'plume' = the model has a CO2 cloud here; everywhere else the file has 0 (= background, not missing data)
     const co2Plume = !!this.co2 && ppmIndex > 0 && density > 0;
     const co2Available = !!this.co2;
-    const bioAvailable = !!this.bio && (bioClass === 0 || bioClass === 1);
+    // Relative level 0..1 per class. Land greenness only reaches ~130/255 in the file and ocean chlorophyll sits
+    // between ~50 and ~220, so rescale each to use the full 0..1 range (this is what the sound and meters follow).
+    const kind: 'land' | 'ocean' | 'none' = bioClass === 1 ? 'land' : bioClass === 0 ? 'ocean' : 'none';
+    const level = kind === 'land' ? Math.min(1, bioValue * 255 / 130)
+      : kind === 'ocean' ? Math.min(1, Math.max(0, (bioValue * 255 - 40) / 180)) : 0;
+    const bioAvailable = !!this.bio && kind !== 'none' && level > 0.02;
+    const rawPlace = isWater ? describeWater(lat, lon) : describeLand(lat, lon);
     return {
-      lat, lon, nearestRegion: this.resolveNearestLandmark(lat, lon, isWater),
-      isWater,
+      lat, lon, nearestRegion: displayName(rawPlace), spokenPlace: withArticle(rawPlace),
+      isWater, surface,
       sst: { tempC: Number(tempC.toFixed(1)), normalized: tempC / 30, available: sstAvailable },
       aerosols: { blackCarbon, dust, seaSalt, sulfate, strength, normalized: strength, available: aerAvailable },
       co2: { ppm: Number(ppm.toFixed(1)), normalized: co2Plume ? ppmIndex / 255 : 0, available: co2Available, plume: co2Plume },
       forest: {
         greenness: bioClass === 1 ? bioValue : 0,
         chlorophyll: bioClass === 0 ? bioValue : 0,
-        normalized: bioValue,
-        available: bioAvailable
+        normalized: level,
+        available: bioAvailable,
+        kind
       }
     };
-  }
-
-  private resolveNearestLandmark(lat: number, lon: number, isWater: boolean): string {
-    if (isWater) {
-      if (lat > 65) return 'Arctic Ocean';
-      if (lat < -55) return 'Southern Ocean';
-      if (lon >= 40 && lon <= 110 && lat < 25) return 'Indian Ocean Basin';
-      if (lon > -80 && lon < 0 && lat > 0) return 'North Atlantic Ocean';
-      if (lon < -80 || lon > 120) return 'Pacific Ocean';
-      return 'Global Ocean';
-    }
-    if (lat > 18 && lat < 30 && lon > 68 && lon < 90) return 'India / Indo-Gangetic Basin';
-    if (lat > -20 && lat < 5 && lon > -75 && lon < -45) return 'Amazon Basin';
-    if (lat > 15 && lat < 32 && lon > -15 && lon < 35) return 'Sahara Region';
-    if (lat > 55 && lat < 70 && lon > 60 && lon < 140) return 'Siberian Taiga';
-    return 'Continental Land Mass';
   }
 
   public getEquirectangularCanvas(param: ParameterId): HTMLCanvasElement {
@@ -188,6 +194,8 @@ class EarthDataEngine {
       if (param === 'sst' && this.sst) {
         const base = frame * SST_BYTES;
         if (this.sst[base + i] !== 0) continue;           // class plane: 0 = ocean
+        // sea ice (grey on the biosphere map) has no SST - keep the SST layer, the readout and the sound in agreement
+        if (this.bio && width === BIO_W && height === BIO_H && this.bio[this.frames.forest * BIO_BYTES + i] === 2) continue;
         const n = this.sst[base + width * height + i] / 255; // value plane
         const rgb = n < .33 ? [0, Math.round(n * 3 * 220), 255] : n < .66 ? [0, 220, Math.round((.66 - n) * 3 * 255)] : [255, Math.round((1 - n) * 150), 20];
         out[p] = rgb[0]; out[p+1] = rgb[1]; out[p+2] = rgb[2]; out[p+3] = 205;

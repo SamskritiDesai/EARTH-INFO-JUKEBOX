@@ -42,7 +42,7 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
     <header className="hud-top-header pixel-panel-blue" role="banner">
       <div className="header-brand-block">
         <div className="brand-title-wrap">
-          <Radio className="pixel-icon-cyan pulse" size={18} />
+          <Radio className="pixel-icon-cyan pulse" size={18} aria-hidden="true" />
           <h1 className="brand-title">EARTH FM</h1>
           <span className="badge-crt-green">LIVE</span>
         </div>
@@ -67,7 +67,8 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
                   type="range" min={0} max={info.count - 1} value={info.index}
                   disabled={datasetLoading || !!datasetError}
                   onChange={e => onFrameChange(param, Number(e.target.value))}
-                  aria-label={`${FRAME_LABELS[param]} frame`}
+                  aria-label={`${FRAME_LABELS[param]} date`}
+                  aria-valuetext={info.label}
                 />
                 <strong>{info.label}</strong>
               </label>
@@ -79,26 +80,28 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
       <div className="header-actions-block">
         <button className={`hud-pixel-btn ${isPlaying ? 'btn-active-cyan' : 'btn-alert-crimson'}`}
           onClick={onTogglePlay} title="Play / Pause Audio Synthesis (Spacebar)"
-          aria-label={isPlaying ? 'Pause Audio' : 'Play Audio'}>
+          aria-label={isPlaying ? 'Pause audio' : 'Play audio'}>
           {isPlaying ? <Pause size={14} /> : <Play size={14} />}
           <span>{isPlaying ? 'AUDIO ON' : 'MUTED'}</span>
         </button>
         <button className={`hud-pixel-btn ${autoPlayEnabled ? 'btn-active-green' : 'btn-idle'}`}
-          onClick={onToggleAutoPlay} title="Toggle Satellite Route Auto-Play Mode">
+          onClick={onToggleAutoPlay} title="Toggle Satellite Route Auto-Play Mode (R)"
+          aria-label="Route auto-play" aria-pressed={autoPlayEnabled}>
           <Satellite size={14} /><span>ROUTE AUTO-PLAY</span>
         </button>
         <button className={`hud-pixel-btn ${isScanPlaneActive ? 'btn-active-green' : 'btn-idle'}`}
-          onClick={onToggleScanPlane} title="Toggle 3D Phosphor Scan Plane">
+          onClick={onToggleScanPlane} title="Toggle 3D Phosphor Scan Plane"
+          aria-label="Scan plane" aria-pressed={isScanPlaneActive}>
           <Disc3 size={14} /><span>3D SCAN PLANE</span>
         </button>
         <button className={`hud-pixel-btn ${narratorEnabled ? 'btn-active-amber' : 'btn-idle'}`}
-          onClick={onToggleNarrator} title="Toggle Spoken Audio Narrator" aria-label="Toggle Spoken Audio Narrator">
+          onClick={onToggleNarrator} title="Toggle Spoken Audio Narrator (N)" aria-label="Narrator" aria-pressed={narratorEnabled}>
           {narratorEnabled ? <Mic size={14} /> : <MicOff size={14} />}
           <span>NARRATOR: {narratorEnabled ? 'ON' : 'OFF'}</span>
         </button>
         <button className="hud-pixel-btn btn-load-nasa" onClick={onOpenNasaDrawer}
-          title="Load Custom NASA SVS Dataset / Textures">[ LOAD NASA DATASET ]</button>
-        <div className="hud-utc-badge font-vt323">{utcTime}</div>
+          title="Load Custom NASA SVS Dataset / Textures" aria-label="Load NASA dataset">[ LOAD NASA DATASET ]</button>
+        <div className="hud-utc-badge font-vt323" aria-hidden="true">{utcTime}</div>
       </div>
     </header>
   );

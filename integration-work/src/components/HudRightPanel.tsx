@@ -110,7 +110,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
           </div>
 
           {/* Dual Vertical Pixel VU Meters */}
-          <div className="dual-vu-container">
+          <div className="dual-vu-container" aria-hidden="true">
             {/* Left Channel */}
             <div className="vu-meter-column">
               <div className="vu-meter-track">
@@ -154,15 +154,16 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
         <div className="route-selection-controls">
           {/* Source Dropdown */}
           <div className="dropdown-control-group">
-            <label className="dropdown-label font-vt323">ORIGIN (SOURCE):</label>
+            <label className="dropdown-label font-vt323" htmlFor="route-origin">ORIGIN (SOURCE):</label>
             <select
+              id="route-origin"
               className="hud-pixel-select"
               value={selectedSource.id}
               onChange={(e) => {
                 const found = LANDMARKS.find(l => l.id === e.target.value);
                 if (found) onSelectSource(found);
               }}
-              aria-label="Route Origin"
+              aria-label="Route origin"
             >
               {LANDMARKS.map(lm => (
                 <option key={lm.id} value={lm.id}>
@@ -174,15 +175,16 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
 
           {/* Destination Dropdown */}
           <div className="dropdown-control-group">
-            <label className="dropdown-label font-vt323">DESTINATION:</label>
+            <label className="dropdown-label font-vt323" htmlFor="route-destination">DESTINATION:</label>
             <select
+              id="route-destination"
               className="hud-pixel-select"
               value={selectedDest.id}
               onChange={(e) => {
                 const found = LANDMARKS.find(l => l.id === e.target.value);
                 if (found) onSelectDest(found);
               }}
-              aria-label="Route Destination"
+              aria-label="Route destination"
             >
               {LANDMARKS.map(lm => (
                 <option key={lm.id} value={lm.id}>
@@ -206,7 +208,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
               value={routeBpm}
               onChange={(e) => onBpmChange(Number(e.target.value))}
               className="hud-pixel-range"
-              aria-label="Route Transit Speed Slider"
+              aria-label="Route speed" aria-valuetext={`${routeBpm} beats per minute`}
             />
           </div>
 
@@ -215,6 +217,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
             className="hud-pixel-btn btn-save-route"
             onClick={onSaveCurrentRoute}
             title="Save this Source -> Destination route to your Presets"
+            aria-label="Save route"
           >
             <BookmarkPlus size={13} style={{ display: 'inline', marginRight: 4 }} />
             [ + SAVE ROUTE AS PRESET ]
@@ -231,6 +234,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
                 className="preset-track-pill"
                 onClick={() => onApplyPreset(preset)}
                 title={`${preset.subtitle}: ${preset.description}`}
+                aria-label={`Play route ${preset.subtitle}`}
               >
                 {preset.title}
               </button>
@@ -241,6 +245,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
                 className="preset-track-pill saved"
                 onClick={() => onApplyPreset(preset)}
                 title={`User Saved Route: ${preset.subtitle}`}
+                aria-label={`Play saved route ${preset.subtitle}`}
               >
                 ★ {preset.title}
               </button>
@@ -250,7 +255,7 @@ export const HudRightPanel: React.FC<HudRightPanelProps> = ({
       </div>
 
       {/* 3. Docked Live Sonic Transcript Panel */}
-      <div className="telemetry-box pixel-panel-blue sonic-transcript-box" aria-live="polite">
+      <div className="telemetry-box pixel-panel-blue sonic-transcript-box">
         <div className="telemetry-box-title">
           <Terminal size={14} className="icon-cyan" />
           <span>[ SONIC TRANSCRIPT ]</span>

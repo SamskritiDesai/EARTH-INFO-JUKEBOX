@@ -10,6 +10,7 @@ import { DjConsole } from './components/DjConsole';
 import { LeaderLineTooltip } from './components/LeaderLineTooltip';
 import { ColorScaleBar } from './components/ColorScaleBar';
 import { NasaLoaderDrawer } from './components/NasaLoaderDrawer';
+import { useHoverAnnouncer } from './accessibility/useHoverAnnouncer';
 import './styles/cyberHud.css';
 
 const LOCAL_STORAGE_PRESETS_KEY = 'earth_fm_saved_presets_v1';
@@ -48,6 +49,7 @@ export const App: React.FC = () => {
   // Features & Overlays
   const [isScanPlaneActive, setIsScanPlaneActive] = useState(true);
   const [isNasaDrawerOpen, setIsNasaDrawerOpen] = useState(false);
+  const [hoverScanEnabled, setHoverScanEnabled] = useState(true);
 
   // Hover Tooltip States
   const [hoverParam, setHoverParam] = useState<ParameterId | null>(null);
@@ -115,28 +117,76 @@ export const App: React.FC = () => {
     setDataVersion(v => v + 1);
   };
 
-  // Handle Spoken Audio Narrator Debounced Speech
-  useEffect(() => {
-    if (!narratorEnabled || !('speechSynthesis' in window)) return;
-    const now = Date.now();
-    // Throttle speech to every 4.5 seconds to prevent overlap or stutter
-    if (now - lastSpokenTimeRef.current < 4500) return;
-    lastSpokenTimeRef.current = now;
+  // Spoken narrator. Speaks the place name when the place changes (auto-play: "Above the Indian Ocean", nothing
+  // else). In manual mode it also gives the coordinates, and speaks again after moving a few degrees within one
+  // place. One pending timer always speaks the LATEST place, so nothing is skipped or starved while moving.
+  const lastSpokenPlaceRef = useRef('');
+  const lastSpokenPosRef = useRef({ lat: 0, lon: 0 });
+  const latestTelemetryRef = useRef(telemetry);
+  latestTelemetryRef.current = telemetry;
+  const autoPlayRef = useRef(autoPlayEnabled);
+  autoPlayRef.current = autoPlayEnabled;
+  const speakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    window.speechSynthesis.cancel(); // Clear stale queue
+  const speakPlace = useCallback(() => {
+    const t = latestTelemetryRef.current;
+    lastSpokenTimeRef.current = Date.now();
+    lastSpokenPlaceRef.current = t.nearestRegion;
+    lastSpokenPosRef.current = { lat: t.lat, lon: t.lon };
+    window.speechSynthesis.cancel();
 
-    const activeList = synthEngine.getActiveNotes().map(n => n.note).join(' and ');
-    const text = `Orbiting over ${telemetry.nearestRegion}. Coordinates: ${Math.abs(telemetry.lat).toFixed(1)} degrees, ${Math.abs(telemetry.lon).toFixed(1)} degrees. Synthesizing ${activeList || 'ambient tones'}.`;
-
+    let text: string;
+    if (autoPlayRef.current) {
+      text = `Above ${t.spokenPlace}.`;
+    } else {
+      const notes = Array.from(new Set(synthEngine.getActiveNotes().map(n => n.note))).join(' and ');
+      const ice = t.surface === 'sea-ice' ? ' Covered by sea ice.' : t.surface === 'land-ice' ? ' Covered by ice and snow.' : '';
+      text = `${t.spokenPlace}.${ice} ${Math.abs(t.lat).toFixed(0)} degrees ${t.lat >= 0 ? 'north' : 'south'}, ` +
+        `${Math.abs(t.lon).toFixed(0)} degrees ${t.lon >= 0 ? 'east' : 'west'}. Synthesizing ${notes || 'ambient tones'}.`;
+    }
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.05;
     utterance.pitch = 1.0;
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
-
     window.speechSynthesis.speak(utterance);
-  }, [probeLat, probeLon, narratorEnabled, telemetry.nearestRegion]);
+  }, []);
+
+  useEffect(() => {
+    if (!narratorEnabled || !('speechSynthesis' in window)) {
+      if (speakTimerRef.current) { clearTimeout(speakTimerRef.current); speakTimerRef.current = null; }
+      return;
+    }
+    const needsSpeech = () => {
+      const t = latestTelemetryRef.current;
+      const moved = Math.hypot(t.lat - lastSpokenPosRef.current.lat, t.lon - lastSpokenPosRef.current.lon);
+      return t.nearestRegion !== lastSpokenPlaceRef.current || (!autoPlayRef.current && moved >= 3);
+    };
+    if (!needsSpeech() || speakTimerRef.current) return;
+    const wait = Math.max(0, 3500 - (Date.now() - lastSpokenTimeRef.current));
+    speakTimerRef.current = setTimeout(() => {
+      speakTimerRef.current = null;
+      if (needsSpeech()) speakPlace();
+    }, wait);
+  }, [telemetry.nearestRegion, telemetry.lat, telemetry.lon, narratorEnabled, autoPlayEnabled, speakPlace]);
+
+  useEffect(() => () => { if (speakTimerRef.current) clearTimeout(speakTimerRef.current); }, []);
+
+  // Speak the name of any button / slider the pointer rests on (or that gets keyboard focus) while the narrator is on
+  useHoverAnnouncer(narratorEnabled);
+
+  // Screen-reader live announcement (silent text region). Not used while the built-in narrator is on, so they never double up.
+  const [srAnnouncement, setSrAnnouncement] = useState('');
+  useEffect(() => {
+    if (narratorEnabled) { setSrAnnouncement(''); return; }
+    const t = latestTelemetryRef.current;
+    setSrAnnouncement(autoPlayEnabled
+      ? `Above ${t.spokenPlace}.`
+      : `${t.spokenPlace}. ${Math.abs(t.lat).toFixed(0)} degrees ${t.lat >= 0 ? 'north' : 'south'}, ${Math.abs(t.lon).toFixed(0)} degrees ${t.lon >= 0 ? 'east' : 'west'}.`);
+    // only when the place changes, not on every coordinate tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telemetry.nearestRegion, narratorEnabled, autoPlayEnabled]);
 
   // Auto-Play Satellite Route Animation Loop
   useEffect(() => {
@@ -190,8 +240,10 @@ export const App: React.FC = () => {
     handleUserInteraction();
     if (!narratorEnabled && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const prime = new SpeechSynthesisUtterance('EARTH FM Narrator Online.');
+      const prime = new SpeechSynthesisUtterance('EARTH FM Narrator Online. Hover over any button to hear its name.');
       window.speechSynthesis.speak(prime);
+      lastSpokenPlaceRef.current = ''; // announce the current place right after the intro
+      lastSpokenTimeRef.current = Date.now(); // ...but let the intro finish first
     } else if (narratorEnabled && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -252,11 +304,25 @@ export const App: React.FC = () => {
   };
 
   // Keyboard Accessibility
+  // (the listener is created once, so it calls the latest toggles through refs)
+  const toggleNarratorRef = useRef(handleToggleNarrator);
+  toggleNarratorRef.current = handleToggleNarrator;
+  const toggleAutoPlayRef = useRef(handleToggleAutoPlay);
+  toggleAutoPlayRef.current = handleToggleAutoPlay;
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Space / Enter on a focused button must press that button, not toggle the audio
+      const onButton = e.target instanceof HTMLElement && !!e.target.closest('button, [role="button"]');
 
-      if (e.code === 'Space') {
+      if (e.key === 'n' || e.key === 'N') {
+        toggleNarratorRef.current();
+      } else if (e.key === 'h' || e.key === 'H') {
+        setHoverScanEnabled(v => !v);
+      } else if (e.key === 'r' || e.key === 'R') {
+        toggleAutoPlayRef.current();
+      } else if (e.code === 'Space' && !onButton) {
         e.preventDefault();
         handleTogglePlay();
       } else if (e.key === '1') {
@@ -268,12 +334,16 @@ export const App: React.FC = () => {
       } else if (e.key === '4') {
         handleToggleParam('forest');
       } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
         setProbeLat(lat => Math.min(88, lat + 2));
       } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
         setProbeLat(lat => Math.max(-88, lat - 2));
       } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
         setProbeLon(lon => (lon - 2 < -180 ? lon - 2 + 360 : lon - 2));
       } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
         setProbeLon(lon => (lon + 2 > 180 ? lon + 2 - 360 : lon + 2));
       }
     };
@@ -289,6 +359,7 @@ export const App: React.FC = () => {
       onPointerDown={handleUserInteraction}
     >
       {/* Crisp 16-Bit Silver / Cobalt Beveled Screen Frame */}
+      <div className="sr-only" role="status" aria-live="polite">{srAnnouncement}</div>
       <div className="crt-screen-bezel">
         {/* Subtle Non-Blurring CRT Scanline Overlay */}
         <div className="crt-scanlines-overlay" />
@@ -339,8 +410,24 @@ export const App: React.FC = () => {
                 autoPlayDest={selectedDest}
                 autoPlayProgress={autoPlayProgress}
                 isScanPlaneActive={isScanPlaneActive}
+                hoverScanEnabled={hoverScanEnabled}
                 onReticleScreenPosChange={setReticleScreenPos}
               />
+
+              {/* Explore controls: hover scan toggle + how to move around */}
+              <div className="globe-hint-chip">
+                <button
+                  type="button"
+                  className={`hud-pixel-btn ${hoverScanEnabled ? 'btn-active-green' : 'btn-idle'}`}
+                  onClick={() => setHoverScanEnabled(v => !v)}
+                  aria-pressed={hoverScanEnabled}
+                  aria-label="Hover scan"
+                  title="Hover scan: the probe follows your mouse over the globe (H)"
+                >
+                  HOVER SCAN: {hoverScanEnabled ? 'ON' : 'OFF'}
+                </button>
+                <span className="globe-hint-text font-vt323">DRAG = ROTATE · MOVE = SCAN · CLICK = PIN · ARROWS = MOVE</span>
+              </div>
 
               {/* Dynamic Map Color Scale Bar */}
               <ColorScaleBar activeParams={activeParams} />
@@ -358,10 +445,17 @@ export const App: React.FC = () => {
                 >
                   <div className="callout-reticle-line" />
                   <div className="callout-reticle-badge">
-                    <span className="reticle-latlon">
-                      {Math.abs(probeLat).toFixed(1)}°{probeLat >= 0 ? 'N' : 'S'} / {Math.abs(probeLon).toFixed(1)}°{probeLon >= 0 ? 'E' : 'W'}
-                    </span>
-                    <span className="reticle-place">{telemetry.nearestRegion}</span>
+                    {autoPlayEnabled ? (
+                      // during the satellite route: just the place, no coordinates
+                      <span className="reticle-latlon">Above {telemetry.spokenPlace}</span>
+                    ) : (
+                      <>
+                        <span className="reticle-latlon">
+                          {Math.abs(probeLat).toFixed(1)}°{probeLat >= 0 ? 'N' : 'S'} / {Math.abs(probeLon).toFixed(1)}°{probeLon >= 0 ? 'E' : 'W'}
+                        </span>
+                        <span className="reticle-place">{telemetry.nearestRegion}</span>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

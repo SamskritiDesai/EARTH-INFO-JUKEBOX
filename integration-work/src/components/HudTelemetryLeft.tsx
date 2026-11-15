@@ -10,6 +10,11 @@ interface HudTelemetryLeftProps {
   onHoverParam?: (id: ParameterId | null, event?: React.MouseEvent) => void;
 }
 
+const SURFACE_LABEL: Record<SampledEarthTelemetry['surface'], string> = {
+  ocean: 'OCEAN', coast: 'COAST', land: 'LAND', 'sea-ice': 'SEA ICE', 'land-ice': 'ICE / SNOW'
+};
+const isIce = (t: SampledEarthTelemetry) => t.surface === 'sea-ice' || t.surface === 'land-ice';
+
 export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
   telemetry,
   activeParams,
@@ -184,7 +189,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
         <div className="donut-and-graph-row">
           {/* Concentric Donut Gauge SVG */}
           <div className="donut-gauge-container">
-            <svg viewBox="0 0 100 100" className="pixel-donut-svg">
+            <svg viewBox="0 0 100 100" className="pixel-donut-svg" role="img" aria-label="Combined data energy gauge">
               {/* Outer Ring: Thermal Energy */}
               <circle cx="50" cy="50" r="40" stroke="#003366" strokeWidth="6" fill="none" />
               <circle
@@ -232,7 +237,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
 
           {/* Real-Time Scrolling Telemetry Waveform */}
           <div className="graph-container">
-            <canvas ref={canvasGraphRef} width={130} height={75} className="telemetry-graph-canvas" />
+            <canvas ref={canvasGraphRef} width={130} height={75} className="telemetry-graph-canvas" aria-hidden="true" />
           </div>
         </div>
       </div>
@@ -241,7 +246,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
       <div className="telemetry-box pixel-panel-blue">
         <div className="telemetry-box-title">
           <span>SURFACE COORD & READINGS</span>
-          <span className="badge-cyan font-vt323">{telemetry.isWater ? 'OCEAN' : 'LAND'}</span>
+          <span className="badge-cyan font-vt323">{SURFACE_LABEL[telemetry.surface]}</span>
         </div>
 
         <div className="telemetry-readout-rows font-vt323">
@@ -252,8 +257,8 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
           <div className="telemetry-line">
             <span className="label">TERRITORY:</span>
             <span className="val-cyan" title={telemetry.nearestRegion}>
-              {telemetry.nearestRegion.length > 20
-                ? telemetry.nearestRegion.substring(0, 19) + '…'
+              {telemetry.nearestRegion.length > 22
+                ? telemetry.nearestRegion.substring(0, 21) + '…'
                 : telemetry.nearestRegion}
             </span>
           </div>
@@ -266,7 +271,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
             {telemetry.sst.available ? (
               <span className="val-cyan">{smoothed.sst.toFixed(1)} °C</span>
             ) : (
-              <span className="val-crimson">[UNAVAILABLE]</span>
+              <span className="val-crimson">{telemetry.surface === 'sea-ice' ? '[SEA ICE]' : '[UNAVAILABLE]'}</span>
             )}
           </div>
 
@@ -298,7 +303,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
             {telemetry.forest.available ? (
               <span className="val-green">{(smoothed.forest * 100).toFixed(0)}% REL.</span>
             ) : (
-              <span className="val-crimson">[UNAVAILABLE]</span>
+              <span className="val-crimson">{isIce(telemetry) ? '[ICE / SNOW]' : '[UNAVAILABLE]'}</span>
             )}
           </div>
         </div>
@@ -320,7 +325,12 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
               <div
                 key={pid}
                 className={`param-toggle-card ${isToggled ? 'toggled' : 'untoggled'} ${!isAvail ? 'offline' : ''}`}
+                role="button"
+                tabIndex={0}
+                aria-pressed={isToggled}
+                aria-label={`${meta.shortLabel.replace('DYAMOND ', '').replace('GEOS ', '')} layer${!isAvail ? ', no data here' : ''}`}
                 onClick={() => onToggleParam(pid)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleParam(pid); } }}
                 onMouseEnter={(e) => onHoverParam?.(pid, e)}
                 onMouseLeave={() => onHoverParam?.(null)}
               >
@@ -350,7 +360,7 @@ export const HudTelemetryLeft: React.FC<HudTelemetryLeftProps> = ({
           <span>RAINBOW SPECTRAL TERRAIN</span>
         </div>
         <div className="spectral-heatmap-container">
-          <canvas ref={canvasHeatmapRef} width={220} height={55} className="spectral-canvas" />
+          <canvas ref={canvasHeatmapRef} width={220} height={55} className="spectral-canvas" aria-hidden="true" />
         </div>
       </div>
     </aside>
