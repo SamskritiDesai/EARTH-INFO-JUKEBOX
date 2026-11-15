@@ -554,7 +554,7 @@ export class ThemedChordEngine {
   }
 
   // Ensure unavailable timeline parameters are completely silenced
-  private syncAvailabilityWithGains(telemetry: SampledEarthTelemetry) {
+  private syncAvailabilityWithGains(telemetry: SampledEarthTelemetry | null, tau = 0.2) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     const params: ParameterId[] = ['sst', 'aerosols', 'co2', 'forest'];
@@ -566,7 +566,7 @@ export class ThemedChordEngine {
       const g = this.channelGains[p];
       if (!g) return;
 
-      const isAvail = telemetry[p].available;
+      const isAvail = telemetry ? telemetry[p].available : true; // no probe sample yet -> treat as available
       const ctrl = this.channelControls[p];
 
       let targetGain = 0;
@@ -577,8 +577,15 @@ export class ThemedChordEngine {
           targetGain = ctrl.muted ? 0 : ctrl.volume;
         }
       }
-      g.gain.setTargetAtTime(targetGain, now, 0.2);
+      g.gain.setTargetAtTime(targetGain, now, tau);
     });
+  }
+
+  // Re-apply every fader / mute / solo straight away (called by the mixer controls) so the sound follows the
+  // control while it is being dragged, without waiting for the probe to move. Short time constant = fast but click-free.
+  private applyChannelGainsNow() {
+    if (!this.ctx || !this.isUnlocked) return;
+    this.syncAvailabilityWithGains(this.lastTelemetry, 0.03);
   }
 
   // DJ Crossfader Control (-1.0 to +1.0)
@@ -598,15 +605,18 @@ export class ThemedChordEngine {
 
   public setChannelVolume(param: ParameterId, vol: number) {
     this.channelControls[param].volume = Math.max(0, Math.min(1, vol));
+    this.applyChannelGainsNow();
   }
 
   public toggleMute(param: ParameterId): boolean {
     this.channelControls[param].muted = !this.channelControls[param].muted;
+    this.applyChannelGainsNow();
     return this.channelControls[param].muted;
   }
 
   public toggleSolo(param: ParameterId): boolean {
     this.channelControls[param].solo = !this.channelControls[param].solo;
+    this.applyChannelGainsNow();
     return this.channelControls[param].solo;
   }
 

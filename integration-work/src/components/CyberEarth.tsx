@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { ParameterId, earthDataEngine, SampledEarthTelemetry } from '../data/earthDataEngine';
 import { COASTLINE_POLYLINES, BORDER_POLYLINES, Landmark } from '../data/worldBoundaries';
+import { createDataScanGrid, DataScanGrid } from './dataScanGrid';
 
 interface CyberEarthProps {
   activeParams: Record<ParameterId, boolean>;
@@ -65,7 +66,8 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   const reticleGroupRef = useRef<THREE.Group | null>(null);
   const satelliteMeshRef = useRef<THREE.Group | null>(null);
   const routeArcMeshRef = useRef<THREE.Line | null>(null);
-  const scanPlaneRef = useRef<THREE.Group | null>(null);
+  const scanPlaneRef = useRef<DataScanGrid | null>(null);
+  const scanReadoutRef = useRef<HTMLDivElement | null>(null);
 
   // Layer textures and meshes
   const layerMeshesRef = useRef<Record<ParameterId, THREE.Mesh | null>>({
@@ -84,6 +86,8 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
   probeRef.current = { lat: probeLat, lon: probeLon };
   const scanActiveRef = useRef(isScanPlaneActive);
   scanActiveRef.current = isScanPlaneActive;
+  const activeParamsRef = useRef(activeParams);
+  activeParamsRef.current = activeParams;
   const reticleCbRef = useRef(onReticleScreenPosChange);
   reticleCbRef.current = onReticleScreenPosChange;
   const lastReticleRef = useRef<{ x: number; y: number } | null>(null);
@@ -161,10 +165,11 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       layerMeshesRef.current[param] = layerMesh;
     });
 
-    // 5. Intersecting Phosphor-Green 3D Wireframe Scan Plane (#00CC00)
-    const scanPlaneGroup = createScanPlane(GLOBE_RADIUS * 1.35);
-    globeGroup.add(scanPlaneGroup);
-    scanPlaneRef.current = scanPlaneGroup;
+    // 5. Data scan grid: raised, data-coloured cells over the globe, with a band sweeping pole to pole (visual only)
+    const scanGrid = createDataScanGrid(GLOBE_RADIUS);
+    globeGroup.add(scanGrid.group);
+    scanPlaneRef.current = scanGrid;
+    if (earthDataEngine.isLoaded()) scanGrid.setData(activeParamsRef.current);
 
     // 6. Interactive 3D Target Reticle (Point Probe Mode)
     const reticleGroup = createReticle();
@@ -188,9 +193,9 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
 
       // Scan plane sweep pulse
       if (scanPlaneRef.current) {
-        scanPlaneRef.current.visible = scanActiveRef.current;
+        scanPlaneRef.current.group.visible = scanActiveRef.current;
         if (scanActiveRef.current) {
-          scanPlaneRef.current.rotation.y += delta * 0.4;
+          scanPlaneRef.current.update(elapsedTime); // band sweep only; no text readout is shown
         }
       }
 
@@ -249,6 +254,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
       if (renderer.domElement && container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
       }
+      if (scanReadoutRef.current && scanReadoutRef.current.parentNode) scanReadoutRef.current.parentNode.removeChild(scanReadoutRef.current);
       renderer.dispose();
     };
   }, []);
@@ -278,7 +284,7 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
         const isAvail = earthDataEngine.isLoaded();
         const isToggled = activeParams[param];
 
-        if (isToggled && isAvail) {
+        if (isToggled && isAvail && !isScanPlaneActive) {   // the scan grid replaces the flat painted layers
           mesh.material.opacity = param === 'sst' ? 0.8 : 0.65;
           mesh.visible = true;
         } else {
@@ -287,7 +293,13 @@ export const CyberEarth: React.FC<CyberEarthProps> = ({
         }
       }
     });
-  }, [activeParams, dataVersion]);
+  }, [activeParams, dataVersion, isScanPlaneActive]);
+
+  // Rebuild the scan grid from the NASA data whenever a frame, a layer toggle or the scan switch changes
+  useEffect(() => {
+    if (!isScanPlaneActive || !earthDataEngine.isLoaded()) return;
+    scanPlaneRef.current?.setData(activeParams);
+  }, [activeParams, dataVersion, isScanPlaneActive]);
 
   // Exact Cursor-to-Sphere Raycast Alignment
   // Drag = spin the globe. Click (no real movement) = place the probe. Shift+drag = scrub the probe.
@@ -565,30 +577,6 @@ function createCoastlineLines(radius: number): THREE.LineSegments {
     opacity: 0.95
   });
   return new THREE.LineSegments(geo, mat);
-}
-
-// Helper: 3D Phosphor-Green Intersecting Scan Plane (#00CC00)
-function createScanPlane(size: number): THREE.Group {
-  const group = new THREE.Group();
-
-  // Wireframe grid plane
-  const gridHelper = new THREE.GridHelper(size, 16, 0x00ff44, 0x008822);
-  gridHelper.rotation.x = Math.PI / 4; // Angled 45° across axis
-  group.add(gridHelper);
-
-  // Outer border ring
-  const ringGeo = new THREE.RingGeometry(size * 0.48, size * 0.5, 32);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: 0x00ff55,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.6
-  });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.rotation.x = Math.PI / 4;
-  group.add(ring);
-
-  return group;
 }
 
 // Helper: 16-Bit Target Reticle (Point Probe)

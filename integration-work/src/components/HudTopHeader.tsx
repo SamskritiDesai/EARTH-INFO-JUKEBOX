@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ParameterId, DatasetFrameInfo } from '../data/earthDataEngine';
-import { Play, Pause, Radio, Mic, MicOff, Satellite, Disc3 } from 'lucide-react';
+import { Play, Pause, Mic, MicOff, Satellite, Disc3 } from 'lucide-react';
 
 interface HudTopHeaderProps {
   frameInfo: Record<ParameterId, DatasetFrameInfo>;
@@ -17,6 +17,15 @@ interface HudTopHeaderProps {
   onToggleNarrator: () => void;
   onOpenNasaDrawer: () => void;
 }
+
+// Equalizer bars that rise next to the site name (same idea as the bars around the logo globe).
+// Bars in the middle reach higher than the ones at the edges.
+const EQ_COUNT = 14;
+const EQ_BARS = Array.from({ length: EQ_COUNT }, (_, i) => ({
+  peak: 0.3 + 0.7 * Math.sin((Math.PI * (i + 0.5)) / EQ_COUNT),
+  delay: (i * 0.137) % 1.1,
+  duration: 0.7 + ((i * 37) % 9) / 10
+}));
 
 const FRAME_LABELS: Record<ParameterId, string> = {
   sst: 'SST / ECCO2', aerosols: 'AEROSOLS / GEOS', co2: 'CO₂ / DYAMOND', forest: 'BIOSPHERE'
@@ -41,12 +50,22 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
   return (
     <header className="hud-top-header pixel-panel-blue" role="banner">
       <div className="header-brand-block">
-        <div className="brand-title-wrap">
-          <Radio className="pixel-icon-cyan pulse" size={18} aria-hidden="true" />
-          <h1 className="brand-title">EARTH FM</h1>
-          <span className="badge-crt-green">LIVE</span>
+        <img className="brand-mark" src={`${import.meta.env.BASE_URL}earth-fm-mark.png`} alt="" aria-hidden="true" draggable={false} />
+        <div className="brand-text">
+          <div className="brand-title-wrap">
+            <h1 className="brand-title">EARTH FM</h1>
+            <span className="eq-bars" aria-hidden="true">
+              {EQ_BARS.map((b, i) => (
+                <span
+                  key={i}
+                  style={{ '--peak': b.peak, animationDelay: `${b.delay}s`, animationDuration: `${b.duration}s` } as React.CSSProperties}
+                />
+              ))}
+            </span>
+            <span className="badge-crt-green">LIVE</span>
+          </div>
+          <div className="brand-subtitle">EARTH INFORMATION JUKEBOX // NASA DATA TELEMETRY CONSOLE</div>
         </div>
-        <div className="brand-subtitle">EARTH INFORMATION JUKEBOX // NASA DATA TELEMETRY CONSOLE</div>
       </div>
 
       <div className="timeline-selector-block dataset-frame-selector">
@@ -90,9 +109,9 @@ export const HudTopHeader: React.FC<HudTopHeaderProps> = ({
           <Satellite size={14} /><span>ROUTE AUTO-PLAY</span>
         </button>
         <button className={`hud-pixel-btn ${isScanPlaneActive ? 'btn-active-green' : 'btn-idle'}`}
-          onClick={onToggleScanPlane} title="Toggle 3D Phosphor Scan Plane"
-          aria-label="Scan plane" aria-pressed={isScanPlaneActive}>
-          <Disc3 size={14} /><span>3D SCAN PLANE</span>
+          onClick={onToggleScanPlane} title="3D scan: the globe becomes a bar grid of the active NASA layers, with a scanning band"
+          aria-label="Scan grid" aria-pressed={isScanPlaneActive}>
+          <Disc3 size={14} /><span>3D SCAN</span>
         </button>
         <button className={`hud-pixel-btn ${narratorEnabled ? 'btn-active-amber' : 'btn-idle'}`}
           onClick={onToggleNarrator} title="Toggle Spoken Audio Narrator (N)" aria-label="Narrator" aria-pressed={narratorEnabled}>

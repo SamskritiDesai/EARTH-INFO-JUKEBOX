@@ -18,3 +18,24 @@ EARTH FM - fixes (extract over integration-work/, overwrite src\)
 14. Accessibility: fonts ~2px larger everywhere (header kept at its original size), side columns 310->346px, visible yellow keyboard focus, aria-labels/aria-pressed on every control, cards/presets reachable by keyboard, sr-only live place announcement, hover announcer (data: accessibility/useHoverAnnouncer.ts) - with NARRATOR on, resting the pointer on (or tabbing to) any button/slider says its short name. Keys: N narrator, H hover scan, R route auto-play, Space audio, 1-4 layers, arrows move probe.
 15. Biosphere sound: (a) it only played when the probe moved (one note per 3 s update) - it is now a step sequencer that plays continuously: land = kalimba, ocean chlorophyll = glassy bell dyads; pitch height AND note density follow the data (rescaled: land greenness peaks ~130/255 and chlorophyll runs ~50-220, so both now use the full 0-1 range). (b) ice/snow (grey on the map) is silent.
 16. Sea ice: the SST file holds colour-bar artefacts under Arctic/Antarctic sea ice (up to ~28 C at the North Pole), which played warm ocean chords over the grey ice. SST is now unavailable under sea ice (readout, sound AND the SST globe layer). New surface type OCEAN / COAST / LAND / SEA ICE / ICE-SNOW shown in the readout badge.
+
+17. Mixer: faders, mute and solo now change the sound immediately while you drag (they used to be applied only the next time the probe moved). audio/ThemedChordEngine.ts
+18. 3D SCAN is now a bulging wireframe (visual only): a thin glowing lat/lon line mesh (every 3 degrees) wraps the globe. Each grid point is lifted by the real NASA value under it and coloured with the layer legend colours (ocean = SST, land = biosphere, strong aerosol / CO2 plumes take over). A band sweeps pole to pole: lines it touches flare and lift, and a readout shows the average SST / aerosol / CO2 / biosphere along the band. While it is on, the flat painted layers are hidden. Switch it off to get them back. components/dataScanGrid.ts (new), CyberEarth.tsx, HudTopHeader.tsx, data/earthDataEngine.ts (sample() can skip place names), styles/cyberHud.css
+19. Start screen: Earth FM logo over drifting stars, shooting stars and asteroids. Click or any key enters and unlocks audio. components/IntroSplash.tsx, App.tsx, styles/cyberHud.css, public/earth-fm-logo.png, src/vite-env.d.ts
+
+20. 3D SCAN colours now come straight from the same painted layers as the normal globe (same canvas), so they match exactly.
+21. Start screen: logo background is now truly transparent (no box), asteroids much smaller, the "NASA data link" line removed, and "Welcome to Earth FM." is spoken (same voice settings as the narrator) when you enter.
+22. Browser tab icon is now the Earth FM globe logo (public/favicon-*.png, favicon.ico, index.html).
+
+23. Start screen text: lines type themselves out (POWERING UP EARTH FM / TUNING THE PLANET / SIGNAL LOCKED), then "WELCOME TO EARTH FM" drops in letter by letter, then the CLICK OR PRESS ANY KEY button appears. Click/any key still enters at any moment. components/IntroSplash.tsx, styles/cyberHud.css
+24. Header: the Earth FM globe logo (public/earth-fm-mark.png, cropped from the logo) sits left of the name, with animated equalizer bars rising next to "EARTH FM" like the bars around the logo globe. components/HudTopHeader.tsx, styles/cyberHud.css
+25. Green is now the exact logo green (#10f828) and nothing green glows any more (LIVE badge, buttons, start screen, scan readout). styles/cyberHud.css
+
+26. Start screen redone: no extra text. The logo's own white EARTH FM lettering (public/earth-fm-logo-word.png, globe in earth-fm-logo-globe.png) is revealed with a pixel-block wipe + flicker, over the unchanged space background. When the effect ends, "Welcome to Earth FM." is spoken automatically. Browsers may block speech before the first click/key; in that case it is spoken on the first click/key instead. Start-screen glow restored to the original. components/IntroSplash.tsx, App.tsx, styles/cyberHud.css
+
+27. Browser tab icon is now the complete logo: globe, green ring and the green equalizer bars at the north and south poles (public/favicon-32.png, favicon-64.png, favicon-192.png, favicon.ico). Hard-refresh (Ctrl+Shift+R) to see it; browsers cache tab icons.
+28. HOVER SCAN now starts OFF (turn it on with the chip on the globe or the H key). App.tsx
+29. 3D SCAN no longer shows the green text readout on the globe (the sweeping band is unchanged). components/CyberEarth.tsx
+
+30. The "CLICK OR PRESS ANY KEY" button is back under the logo on the start screen (click or any key enters). components/IntroSplash.tsx
+31. 3D SCAN now starts OFF (use the 3D SCAN button in the header to turn it on). App.tsx

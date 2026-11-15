@@ -112,7 +112,8 @@ class EarthDataEngine {
     return y * width + x;
   }
 
-  public sample(lat: number, lon: number): SampledEarthTelemetry {
+  // withPlace=false skips the (slow) place-name lookup - used when sampling thousands of cells for the scan grid
+  public sample(lat: number, lon: number, withPlace = true): SampledEarthTelemetry {
     const sstIdx = this.pixel(lat, lon, SST_W, SST_H);
     const aerIdx = this.pixel(lat, lon, AER_W, AER_H);
     const co2Idx = this.pixel(lat, lon, CO2_W, CO2_H);
@@ -162,9 +163,9 @@ class EarthDataEngine {
     const level = kind === 'land' ? Math.min(1, bioValue * 255 / 130)
       : kind === 'ocean' ? Math.min(1, Math.max(0, (bioValue * 255 - 40) / 180)) : 0;
     const bioAvailable = !!this.bio && kind !== 'none' && level > 0.02;
-    const rawPlace = isWater ? describeWater(lat, lon) : describeLand(lat, lon);
+    const rawPlace = !withPlace ? '' : isWater ? describeWater(lat, lon) : describeLand(lat, lon);
     return {
-      lat, lon, nearestRegion: displayName(rawPlace), spokenPlace: withArticle(rawPlace),
+      lat, lon, nearestRegion: withPlace ? displayName(rawPlace) : '', spokenPlace: withPlace ? withArticle(rawPlace) : '',
       isWater, surface,
       sst: { tempC: Number(tempC.toFixed(1)), normalized: tempC / 30, available: sstAvailable },
       aerosols: { blackCarbon, dust, seaSalt, sulfate, strength, normalized: strength, available: aerAvailable },

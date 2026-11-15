@@ -10,6 +10,7 @@ import { DjConsole } from './components/DjConsole';
 import { LeaderLineTooltip } from './components/LeaderLineTooltip';
 import { ColorScaleBar } from './components/ColorScaleBar';
 import { NasaLoaderDrawer } from './components/NasaLoaderDrawer';
+import { IntroSplash } from './components/IntroSplash';
 import { useHoverAnnouncer } from './accessibility/useHoverAnnouncer';
 import './styles/cyberHud.css';
 
@@ -47,9 +48,10 @@ export const App: React.FC = () => {
   const [autoPlayProgress, setAutoPlayProgress] = useState(0);
 
   // Features & Overlays
-  const [isScanPlaneActive, setIsScanPlaneActive] = useState(true);
+  const [isScanPlaneActive, setIsScanPlaneActive] = useState(false); // 3D SCAN starts OFF
   const [isNasaDrawerOpen, setIsNasaDrawerOpen] = useState(false);
-  const [hoverScanEnabled, setHoverScanEnabled] = useState(true);
+  const [hoverScanEnabled, setHoverScanEnabled] = useState(false); // starts OFF (H key or the chip turns it on)
+  const [showIntro, setShowIntro] = useState(true);
 
   // Hover Tooltip States
   const [hoverParam, setHoverParam] = useState<ParameterId | null>(null);
@@ -78,6 +80,22 @@ export const App: React.FC = () => {
   // Unlock Audio on First User Interaction
   const handleUserInteraction = useCallback(async () => {
     await synthEngine.unlock();
+  }, []);
+
+  // "Welcome to Earth FM." - spoken automatically when the start-screen effect ends. If the browser blocks speech
+  // before the first click/key (autoplay policy), the attempt is marked failed and it is spoken on enter instead.
+  const welcomeSpokenRef = useRef(false);
+  const speakWelcome = useCallback(() => {
+    if (!('speechSynthesis' in window) || welcomeSpokenRef.current) return;
+    const welcome = new SpeechSynthesisUtterance('Welcome to Earth FM.');
+    welcome.rate = 1.05;   // same voice settings as the narrator
+    welcome.pitch = 1.0;
+    welcome.onstart = () => { welcomeSpokenRef.current = true; };
+    welcome.onerror = () => { welcomeSpokenRef.current = false; };
+    try {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(welcome);
+    } catch { /* blocked: retried on enter */ }
   }, []);
 
   // Load the four NASA binary time series once, then refresh the probe telemetry.
@@ -358,6 +376,17 @@ export const App: React.FC = () => {
       onClick={handleUserInteraction}
       onPointerDown={handleUserInteraction}
     >
+      {/* Start screen: space backdrop + logo. Any click / key enters and unlocks the audio. */}
+      {showIntro && (
+        <IntroSplash
+          onWelcome={speakWelcome}
+          onEnter={() => {
+            handleUserInteraction();
+            if (!welcomeSpokenRef.current && !window.speechSynthesis?.speaking) speakWelcome();
+            window.setTimeout(() => setShowIntro(false), 800);
+          }}
+        />
+      )}
       {/* Crisp 16-Bit Silver / Cobalt Beveled Screen Frame */}
       <div className="sr-only" role="status" aria-live="polite">{srAnnouncement}</div>
       <div className="crt-screen-bezel">
